@@ -1,1 +1,4 @@
-# vedant312.github.io
+- [Vedant Dangi](https://vedantdangi.me/)
+- Final year student at IIT Kanpur
+- Roll no: 201101
+- Email: [vedantd20@iitk.ac.in](mailto:vedantd20@iitk.ac.in])
