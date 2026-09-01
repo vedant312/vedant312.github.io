@@ -1,0 +1,100 @@
+/* Shared styles for /blog and every post under it. */
+
+:root {
+  --ground: #f4f6f8;
+  --surface: #ffffff;
+  --ink: #10151b;
+  --ink-soft: #58626e;
+  --ink-faint: #8b95a1;
+  --rule: #d9dee5;
+  --rule-soft: #e7ebf0;
+  --accent: #0b6b5f;
+  --accent-wash: #e2f0ed;
+  --alarm: #9e2b1e;
+  --alarm-wash: #f7e6e3;
+  --code-bg: #eef1f5;
+
+  --serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --measure: 68ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #14171b;
+    --surface: #1b1f24;
+    --ink: #e6e9ed;
+    --ink-soft: #99a3ae;
+    --ink-faint: #6d7883;
+    --rule: #2b3138;
+    --rule-soft: #23282e;
+    --accent: #3fbfae;
+    --accent-wash: #16302d;
+    --alarm: #ff6b57;
+    --alarm-wash: #3a1e1a;
+    --code-bg: #14181d;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #14171b;
+  --surface: #1b1f24;
+  --ink: #e6e9ed;
+  --ink-soft: #99a3ae;
+  --ink-faint: #6d7883;
+  --rule: #2b3138;
+  --rule-soft: #23282e;
+  --accent: #3fbfae;
+  --accent-wash: #16302d;
+  --alarm: #ff6b57;
+  --alarm-wash: #3a1e1a;
+  --code-bg: #14181d;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  display: grid;
+  grid-template-columns: 1fr;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px 120px;
+}
+
+@media (min-width: 1080px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr) 232px;
+    column-gap: 56px;
+    align-items: start;
+  }
+  .masthead { grid-column: 1 / -1; }
+}
+
+/* ---------- site nav ---------- */
+
+.sitenav {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 24px;
+  align-items: baseline;
+  padding: 28px 0 0;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.sitenav a { color: var(--ink-soft); text-decoration: none; }
+.sitenav a:hover { color: var(--accent); }
