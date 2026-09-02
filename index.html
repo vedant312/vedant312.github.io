@@ -1,796 +1,422 @@
-<!-- <!DOCTYPE html> -->
-<html lang="en">
-
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width initial-scale=1" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Google Tag Manager -->
-  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','GTM-PGZH8HT');</script>
-  <!-- End Google Tag Manager -->
+  <title>Vedant Dangi — Full-Stack Software Engineer</title>
+  <meta name="description" content="Full-stack software engineer (SDE II at Owlbyte) building real-time analytics, data pipelines, and agentic-AI products." />
+  <meta name="author" content="Vedant Dangi" />
+  <meta name="theme-color" content="#EDE7DC" />
 
-  <!-- Materialize - Compiled and minified CSS-->
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/materialize/0.95.3/css/materialize.min.css" />
-  <!-- Font Awesome Icon - CSS-->
-  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" />
-  <!-- Custom Styles-->
-  <link rel="stylesheet" href="./assets/css/style.css" />
-  <title>Vedant Dangi | Software Developer</title>
+  <!-- Open Graph -->
+  <meta property="og:title" content="Vedant Dangi — Full-Stack Software Engineer" />
+  <meta property="og:description" content="Full-stack software engineer (SDE II at Owlbyte) building real-time analytics, data pipelines, and agentic-AI products." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://vedant312.github.io/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Vedant Dangi — Full-Stack Software Engineer" />
+  <meta name="twitter:description" content="Full-stack software engineer (SDE II at Owlbyte) building real-time analytics, data pipelines, and agentic-AI products." />
 
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-126939217-2"></script>
+  <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+  <link rel="canonical" href="https://vedant312.github.io/" />
+
+  <!-- Set stored theme before paint to avoid a flash -->
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
-
-    gtag('config', 'UA-126939217-2');
+    (function () {
+      document.documentElement.classList.add('js');
+      try {
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
   </script>
 
-  <!-- Open Graph-->
-  <meta property="og:locale" content="en_US" />
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Vedant Dangi | Software Developer" />
-  <meta property="og:description" content="Software Developer" />
-  <meta property="og:url" content="https://vedant3122.github.io/" />
-  <meta property="og:site_name" content="Vedant Dangi | Software Developer" />
-  <meta property="article:publisher" content="https://vedant3122.github.io/" />
-  <meta property="og:image" content="https://vedant3122.github.io/examples/preview.JPG" />
-  <meta name="author" content="Vedant Dangi" />
-  <meta name="description" content="Software Developer with a passion for backend development and artificial intelligence." />
-  <link rel="apple-touch-icon" sizes="57x57" href="/assets/img/favicon/apple-icon-57x57.png" />
-  <link rel="apple-touch-icon" sizes="60x60" href="/assets/img/favicon/apple-icon-60x60.png" />
-  <link rel="apple-touch-icon" sizes="72x72" href="/assets/img/favicon/apple-icon-72x72.png" />
-  <link rel="apple-touch-icon" sizes="76x76" href="/assets/img/favicon/apple-icon-76x76.png" />
-  <link rel="apple-touch-icon" sizes="114x114" href="/assets/img/favicon/apple-icon-114x114.png" />
-  <link rel="apple-touch-icon" sizes="120x120" href="/assets/img/favicon/apple-icon-120x120.png" />
-  <link rel="apple-touch-icon" sizes="144x144" href="/assets/img/favicon/apple-icon-144x144.png" />
-  <link rel="apple-touch-icon" sizes="152x152" href="/assets/img/favicon/apple-icon-152x152.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/favicon/apple-icon-180x180.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/assets/img/favicon/android-icon-192x192.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="96x96" href="/assets/img/favicon/favicon-96x96.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon/favicon-16x16.png" />
-  <link rel="manifest" href="/assets/img/favicon/manifest.json" />
-  <meta name="msapplication-TileColor" content="#ffffff" />
-  <meta name="msapplication-TileImage" content="/assets/img/favicon/ms-icon-144x144.png" />
-  <meta name="theme-color" content="#ffffff" />
-  <meta name="robots" content="index, follow" />
-  <!-- Google Site Verification for indexing -->
-  <meta name="google-site-verification" content="TUKEp0M5pIGsxpFCY8ck6v7FFfCqlKBAIBw1OLG9BSo" />
+  <!-- Fonts: Fraunces (display, incl. italic) + Inter (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="assets/css/portfolio.css" />
 </head>
-
 <body>
-  <!-- Google Tag Manager (noscript) -->
-  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PGZH8HT"
-  height="0" width="0" style="display:none;visibility:hidden"></iframe>
-  </noscript>
-  
-  <!-- Navigation Menu-->
-  <!-- Nav class 1 -->
-  <nav class="hide-on-small-only">
-    <ul class="side-nav fixed section table-of-contents">
+  <a class="skip-link" href="#main">Skip to content</a>
 
-      <li class="logo">
-        <a id="logo-container" aria-label="Navigate to the beginning of the page" href="#intro"
-          class="brand-logo grey-blue-text">
-          <img src="/assets/img/myphoto.jpeg" class="circle img-responsive profile-pic" alt="avatar">
-        </a>
-      </li>
+  <!-- ============================================================= NAV -->
+  <header class="nav" id="top">
+    <div class="container nav-inner">
+      <a class="brand" href="#top" aria-label="Vedant Dangi — home">Vedant Dangi<span class="brand-dot">.</span></a>
 
-      <li class="bold">
-        <a aria-label="Navigate to the About section" href="#about" class="waves-effect waves-dark teal-text"><i
-            class="mdi-social-person small"></i><span>About</span></a>
-      </li>
-      <li class="bold">
-        <a aria-label="Navigate to the Experience section" href="#experience"
-          class="waves-effect waves-dark teal-text"><i
-            class="mdi-action-trending-up small"></i><span>Experience</span></a>
-      </li>
+      <nav class="nav-links" aria-label="Primary">
+        <a class="navlink" href="#about">About</a>
+        <a class="navlink" href="#experience">Experience</a>
+        <a class="navlink" href="#work">Work</a>
+        <a class="navlink" href="#skills">Skills</a>
+        <a class="navlink" href="#education">Education</a>
+        <a class="navlink" href="/blog/">Blog</a>
+        <a class="navlink" href="#contact">Contact</a>
+      </nav>
 
-      <li class="bold">
-        <!-- mdi-av-web small
-             mdi-av-my-library-books small-->
-        <a aria-label="Navigate to the Projects section" href="#projects" class="waves-effect waves-dark teal-text"><i
-            class="mdi-av-my-library-books small"></i><span>Projects</span></a>
-      </li>
-
-      <li class="bold">
-        <a aria-label="Navigate to the Skills section" href="#skills" class="waves-effect waves-dark teal-text"><i
-            class="mdi-action-assessment small"></i><span>Skills</span></a>
-      </li>
-      
-      <li class="bold">
-        <a aria-label="Navigate to the Education section" href="#education" class="waves-effect waves-dark teal-text"><i
-            class="mdi-social-school small"></i><span>Education</span></a>
-      </li>
-
-      <li class="bold">
-        <a aria-label="Navigate to the Contact section" href="#contact" class="waves-effect waves-dark teal-text"><i
-            class="mdi-content-mail small"></i><span>Contact</span></a>
-      </li>
-
-      <li class="bold">
-        <a aria-label="Open Vedant's resume in a new tab" href="#" target="_blank"
-        class="waves-effect waves-dark teal-text"><i class="mdi-file-folder-open small"></i><span>Resume</span></a>  
-      </li>
-    </ul>
-  </nav>
-
-  <!-- Nav class 2 -->
-  <nav class="hide-on-large only trigger z-depth-1">
-    <a aria-label="Toggle visibility of the mobile navbar" href="#" data-activates="slide-out"
-      class="button-collapse"><i class="mdi-navigation-menu"></i></a>
-    <div class="name-title">
-      <a id="name" aria-label="Navigate to the beginning of the page" href="#" class="teal-text">Vedant
-        Dangi</a><span class="black-text">Software Developer</span>
+      <div class="nav-actions">
+        <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Toggle theme">
+          <span aria-hidden="true" id="theme-icon">🌙</span>
+        </button>
+        <a class="btn btn-ghost nav-resume nav-resume--desk" href="assets/Vedant_Dangi_Resume.pdf" target="_blank" rel="noopener">Résumé</a>
+        <button class="icon-btn nav-toggle" id="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="nav-panel">
+          <span aria-hidden="true">☰</span>
+        </button>
+      </div>
     </div>
-  </nav>
 
-  <!-- Nav class 3 -->
-  <nav class="hide-on-large only">
-    <ul id="slide-out" class="side-nav">
-      <li class="bold">
-        <a aria-label="Navigate to the About section" href="#about" class="waves-effect waves-dark teal-text"><i
-            class="mdi-social-person small"></i><span>About</span></a>
-      </li>
-      <li class="bold">
-        <a aria-label="Navigate to the Experience section" href="#experience"
-          class="waves-effect waves-dark teal-text"><i
-            class="mdi-action-trending-up small"></i><span>Experience</span></a>
-      </li>
-      <li class="bold">
-        <a aria-label="Navigate to the Projects section" href="#projects" class="waves-effect waves-dark teal-text"><i
-            class="mdi-av-my-library-books small"></i><span>Projects</span></a>
-      </li>
-      <li class="bold">
-        <a aria-label="Navigate to the Skills section" href="#skills" class="waves-effect waves-dark teal-text"><i
-            class="mdi-action-assessment small"></i><span>Skills</span></a>
-      </li>
+    <div class="nav-panel" id="nav-panel" data-open="false">
+      <ul>
+        <li><a href="#about">About</a></li>
+        <li><a href="#experience">Experience</a></li>
+        <li><a href="#work">Work</a></li>
+        <li><a href="#skills">Skills</a></li>
+        <li><a href="#education">Education</a></li>
+        <li><a href="/blog/">Blog</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a class="panel-resume" href="assets/Vedant_Dangi_Resume.pdf" target="_blank" rel="noopener">Résumé ↗</a></li>
+      </ul>
+    </div>
+  </header>
 
-      <li class="bold">
-        <a aria-label="Navigate to the Education section" href="#education" class="waves-effect waves-dark teal-text"><i
-            class="mdi-social-school small"></i><span>Education</span></a>
-      </li>
-      <li class="bold">
-        <a aria-label="Navigate to the Contact section" href="#contact" class="waves-effect waves-dark teal-text"><i
-            class="mdi-content-mail small"></i><span>Contact</span></a>
-      </li>
-      <li class="bold">
-        <a aria-label="Open Vedant's Resume in a new tab"
-          href="#" target="_blank"
-          class="waves-effect waves-dark teal-text"><i class="mdi-file-folder-open small"></i><span>Resume</span></a>
-      </li>
-    </ul>
-  </nav>
-
-  <!-- Main Content-->
-  <main>
-    <!-- First Section: Heading lines and image -->
-    <section id="intro" class="section scrollspy full-height">
-      <div class="overlay"></div>
-      <div class="container">
-        <div class="col-md-9">
-          <div class="content section-padding valign" style="margin-left: 10%; margin-top: 50px;">
-            <div class="caption">
-              <h2>Hi, I'm <span class="teal">Vedant Dangi.</span></h2>
-              <h5 style="color:#fff">A <span class="typing" style="font-weight: 300; color:#004d40"></span></h5>
-              <!-- <h5 style="color:#00796b">A <span class="typing" style="font-weight: 300; color:#fff"></span></h5> -->
-              <h5>Data Analyst and ML Enthusiast and also a Full Stack Developer</h5>
-            </div>
-            <div class='buttons'>
-              <a href="#about" class="readme">Read More</a>
-              <a href="#contact" class="contactme">Contact Me</a>
-            </div>
+  <main id="main">
+    <!-- ========================================================== HERO -->
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="container hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow">SDE II · Owlbyte</p>
+          <h1 id="hero-heading">Hey, I'm Vedant <span class="wave" aria-hidden="true">👋</span></h1>
+          <p class="hero-role">a full-stack software engineer</p>
+          <p class="hero-lead">I build data-heavy web products end to end — real-time analytics, large-scale data pipelines, and agentic-AI systems. From Postgres to pixels.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="#work">View my work</a>
+            <a class="btn btn-ghost" href="#contact">Get in touch</a>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Second Section: About -->
-    <section id="about" class="section scrollspy">
-      <h3 class="page-title white-text teal">About</h3>
-      <div class="container flow-text">
-        <!-- <blockquote>
-          <h2>
-            A Software Developer with a passion for Backend Development and Artificial Intelligence.
-
-          </h2>
-        </blockquote> -->        
-        <p>
-          I am a dedicated Material Science and Engineering student at IIT Kanpur. My passion lies in problem-solving and coding, and I consistently put in 100% effort into all my endeavors. I possess proficiency in various technologies, including Python, MySQL, MongoDB, HTML5, CSS, React and C++. With 6 months of professional work experience under my belt, I have honed my skills in Python, SQL, HTML/CSS, Javascript, NodeJS and React. My ultimate goal is to create intricate applications that effectively address real-world challenges, making a positive impact on the lives of millions of users.
-        </p>
-        <p>
-          <ul>
-            <li><b>Languages:</b> C++, Python, SQL, HTML/CSS, JavaScript, Bash</li>
-            <li><b>Databases:</b> RDS, Redshift, MongoDB</li>
-            <li><b>Libraries:</b> NumPy, Pandas, OpenCV</li>
-            <li><b>Frameworks:</b> React, NodeJS, Keras, TensorFlow, PyTorch, Bootstrap</li>
-            <li><b>Tools & Technologies:</b> Git, Docker, AWS, JIRA</li>
+        <aside class="hero-card" aria-label="What I'm working on right now">
+          <p class="hero-card-title"><span class="dot-live" aria-hidden="true"></span> Currently</p>
+          <ul class="now-list">
+            <li><span class="now-emoji" aria-hidden="true">🛠️</span><span class="now-text">Building <strong>Dopamyn</strong> — AI growth &amp; outreach for X, at Owlbyte</span></li>
+            <li><span class="now-emoji" aria-hidden="true">🤖</span><span class="now-text">Neck-deep in <strong>agentic AI</strong> — AI-drafted outreach &amp; a Claude MCP connector</span></li>
+            <li><span class="now-emoji" aria-hidden="true">✍️</span><span class="now-text">Writing up <strong>bugs &amp; data lessons</strong> on the <a href="/blog/">blog</a></span></li>
           </ul>
-          
-        </p>
-          
-        <!-- <p>
-          
-          Detail-oriented Software Developer with professional experience in Backend Development, Machine Learning, Computer Vision. I am adept in Python, Django, Flask, SQL, Machine Learning, Computer Vision.           
-        </p> -->
-        <p>
-          Looking for an opportunity to work in a challenging position, which provides professional development, interesting experiences and personal growth.
-        </p>
+        </aside>
       </div>
     </section>
 
+    <!-- ========================================================= ABOUT -->
+    <section class="section" id="about" aria-labelledby="about-heading">
+      <div class="container about-grid">
+        <div class="section-head" style="margin-bottom:0">
+          <p class="eyebrow">About</p>
+          <h2 id="about-heading">A maker who sweats the data.</h2>
+        </div>
+        <div>
+          <div class="about-prose">
+            <p>I'm a full-stack software engineer with 2+ years of experience building production systems where the data is the hard part. At Owlbyte I work across the stack on <em>Dopamyn</em> — an AI-powered growth and outreach platform for X (Twitter) — shipping features from the database schema and backend services all the way to the interface people click.</p>
+            <p>I like owning problems end to end: designing the API, wrangling the data pipeline, and building the UI on top. Lately that has meant a lot of agentic-AI work — from AI-drafted outreach to a Model Context Protocol connector that lets tools like Claude talk to our product. I move fast with Codex and Claude in the loop, without letting quality slip.</p>
+            <p>Before engineering full-time I earned my B.Tech at IIT Kanpur (Materials Science, with a minor in Machine Learning).</p>
+          </div>
+          <ul class="facts" aria-label="Quick facts">
+            <li class="fact"><span class="emoji" aria-hidden="true">⏳</span> 2+ years experience</li>
+            <li class="fact"><span class="emoji" aria-hidden="true">🧩</span> Full-stack</li>
+            <li class="fact"><span class="emoji" aria-hidden="true">🔗</span> Web3 &amp; AI</li>
+            <li class="fact"><span class="emoji" aria-hidden="true">🌍</span> Remote</li>
+          </ul>
+        </div>
+      </div>
+    </section>
 
-    <!-- Third Section: Experience -->
-    <section id="experience" class="section scrollspy">
-      <h3 class="page-title white-text teal">Experience</h3>
+    <!-- ==================================================== EXPERIENCE -->
+    <section class="section" id="experience" aria-labelledby="exp-heading">
       <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Experience</p>
+          <h2 id="exp-heading">Where I've been building</h2>
+        </div>
 
-        <!-- Latest Experience -->
-        <div class="card">
-          <div class="card-content">
-            <div class="row">
-              <div class="col s12 m2">
-                <img alt="CryptoOwl logo"
-                    src="/assets/img/crypto_owl_logo.jpeg" class="responsive-img center-block" />
-              </div>
-              <!-- <div class="col s12 m10"> -->
-              <div class="col s12 m10">
-                <p>
-                  <span class="card-title">CryptoOwl</span>
-                </p>
-              </div>
+        <ol class="timeline">
+          <li class="tl-item reveal">
+            <div class="tl-head">
+              <span class="tl-role">Software Development Engineer II</span>
+              <span class="tl-company">· Owlbyte</span>
             </div>
-            <div class="role brown-text text-darken-2">Data Analyst</div>
-            <ul>
-              <li>Curate crypto wallet profiles, analyze trends in market and establish alerts for profitable transactions</li>
-              <li>
-                Extracted and transformed crypto data via APIs, synchronized live RDS to Redshift for real-time analytics
-              </li>
-              <li>
-                Tailored SQL queries for detailed analysis of token transaction and swap data of over 100M+ crypto wallets
-              </li>
-              <li>Employed Airflow DAG to schedule and automate data pipeline, ensuring routine and precise data analysis</li>
-              <li>Developed data visualization APIs using AWS Lambda and API Gateway, and managed Cloudwatch logs</li>
-              <li>
-                <b>Tools:</b> Python, SQL, Redshift, Airflow, AWS
-              </li>
+            <div class="tl-meta">
+              <span>May 2024 – Present · Remote</span>
+              <span class="tl-note">Promoted from Software Developer</span>
+            </div>
+            <p class="tl-lead">Building <strong>Dopamyn</strong>, an AI-powered X (Twitter) growth &amp; outreach platform, across a FastAPI + Next.js/TypeScript stack on PostgreSQL and AWS.</p>
+            <ul class="tl-list">
+              <li>Shipped per-recipient <strong>AI-drafted DM campaigns</strong>, personalizing outreach across thousands of recipients.</li>
+              <li>Built automated <strong>outreach sequences</strong> end to end — drip messaging, account warm-up, stop conditions, and CRM automations.</li>
+              <li>Designed and shipped a <strong>Model Context Protocol (MCP) connector</strong> exposing product data as AI tools for conversational access (e.g. via Claude).</li>
+              <li>Led the move to <strong>multi-tenant team workspaces</strong> (Clerk Organizations) so whole teams share one account.</li>
+              <li>Built an <strong>ICP pipeline</strong> that turns a website URL into a matched ideal-customer audience, plus a real-time <strong>X Chat inbox</strong>.</li>
+              <li>Engineered a randomized, human-like <strong>DM scheduler</strong> and backend reliability tooling (alerting + heartbeat watchdog).</li>
             </ul>
-          </div>
-          <div class="card-action">
-            <span>May 2023 - Aug 2023 | Remote</span>
-          </div>
-        </div>
-
-        
-        <!-- Experience 2 -->
-        <div class="card">
-          <div class="card-content">
-            <div class="row">
-              <div class="col s12 m2">
-                <img alt="Mtag logo" src="/assets/img/Brain_infosol_logo.jpeg" class="responsive-img center-block" />
-
-              </div>
-
-              <!-- <div class="col s12 m10"> -->
-              <div class="col s12 m10">
-                <p>
-                  <span class="card-title">Brain Above InfoSol
-                      </span>
-                </p>
-              </div>
+            <div class="tl-tech tags">
+              <span class="tag">FastAPI</span><span class="tag">Python</span><span class="tag">Next.js</span><span class="tag">TypeScript</span><span class="tag">PostgreSQL</span><span class="tag">AWS</span><span class="tag">Vercel</span>
             </div>
-            <div class="role brown-text text-darken-2">Software Developer</div>
-            <ul>
-              <li>
-                Developed a web-based comprehensive Smart Waste Management Solution to enhance operational efficiency
-              </li>
-              <li>
-                Enabled data retrieval, manipulation by integrating databases such as MongoDB, ensuring efficient storage
-              </li>
-              <li>Implemented OAuth & token-based authentication, enhancing streamlined user registration and security</li>
-              <li>
-                <b>Tools:</b> React, NodeJS, MongoDB
-              </li>
+          </li>
+
+          <li class="tl-item reveal">
+            <div class="tl-head">
+              <span class="tl-role">Backend Engineer &amp; Data Analyst</span>
+              <span class="tl-company">· Owlbyte</span>
+            </div>
+            <div class="tl-meta">
+              <span>May 2023 – April 2024 · Remote</span>
+              <span class="tl-note">Pre-placement offer</span>
+            </div>
+            <ul class="tl-list">
+              <li>Profiled <strong>Ethereum wallets</strong> through network analysis to characterize clusters and surface profitable trading behavior.</li>
+              <li>Engineered a real-time <strong>data pipeline</strong> on AWS Timestream, RDS, Redshift, and Lambda, orchestrated with <strong>Airflow</strong>, powering live alerts.</li>
+              <li>Built dashboards correlating on-chain transactions with market movements to simplify crypto trends and risk assessment.</li>
             </ul>
-          </div>
-          <div class="card-action">
-            <span>Dec 2022 - Feb 2023 | Indore, India</span>
-          </div>
-        </div>
-
-        <!-- Experience 3 -->
-        <div class="card">
-          <div class="card-content">
-            <div class="row">
-              <div class="col s12 m2">
-               <img alt="Cignex logo"
-                    src="/assets/img/techavtar_logo.jpeg" class="responsive-img center-block" />
-              </div>
-              <div class="col s12 m10">
-                <p>
-                  <span class="card-title">Techavtar</span>
-                </p>
-              </div>
+            <div class="tl-tech tags">
+              <span class="tag">Python</span><span class="tag">SQL</span><span class="tag">AWS (Timestream, RDS, Redshift, Lambda)</span><span class="tag">Airflow</span>
             </div>
-            <div class="role brown-text text-darken-2">Assistant Product Manager</div>
-            <ul>
-              <li>
-                Build and implement a digital solution aimed at transforming and optimizing an existing bidding process
-              </li>
-              <li>Digitized an offline bid process to online platform, maintaining revenue streams and improving efficiency</li>
-              <li>
-                Increase in the tender and bids counts by 50%, hike in revenue by 30% and reduction in manual workload
-              </li>
+          </li>
+
+          <li class="tl-item reveal">
+            <div class="tl-head">
+              <span class="tl-role">Associate Product Manager</span>
+              <span class="tl-company">· Techavtar</span>
+            </div>
+            <div class="tl-meta">
+              <span>May 2022 – July 2022 · Remote</span>
+            </div>
+            <ul class="tl-list">
+              <li>Digitized an offline bidding process into an online platform, <strong>increasing tender counts by 50%</strong> while protecting revenue.</li>
+              <li>Drove operational efficiency through digital transformation, contributing to a <strong>30% revenue increase</strong> and reduced manual workload.</li>
             </ul>
-          </div>
-          <div class="card-action">
-            <span>May 2022 - July 2022 | Remote</span>
-          </div>
-        </div>
-
+          </li>
+        </ol>
       </div>
     </section>
 
-    <!-- Fourth Section: Projects -->
-    <section id="projects" class="section scrollspy">
-      <h3 class="page-title white-text teal">Projects</h3>
+    <!-- ================================================== SELECTED WORK -->
+    <section class="section" id="work" aria-labelledby="work-heading">
       <div class="container">
-        <div class="row">
+        <div class="section-head">
+          <p class="eyebrow">Selected work</p>
+          <h2 id="work-heading">Things I've shipped</h2>
+          <p>A mix of flagship products, internal engines, and side projects — most of the Owlbyte work runs private, so a few of these live behind the login.</p>
+        </div>
 
-          <div class="col s12 m6 l4">
-            <div class="card medium">
-              <div class="card-image waves-effect waves-block waves-light">
-                <img alt="music streaming app" src="/assets/img/project-music-player.png" style="height: 100%; width: 100%" class="activator" />
-              </div>
-              <div class="card-content">
-                <span class="card-title activator teal-text hoverline">Music Player Web-App<i
-                    class="mdi-navigation-more-vert right"></i></span>
-                <p>
-                  A music streaming web app based on Django
-                </p>
-              </div>
-              <div class="card-reveal">
-                <!-- TODO: change this -- only close button -->
-                <!-- <span class="card-title brown-text">Accomplishments<i class="mdi-navigation-close right"></i></span> -->
-                <span class="card-title grey-text"><small>Accomplishments</small><i
-                    class="mdi-navigation-close right"></i></span>
-                <ul>
-                  <li><b>Tools:</b> Django, HTML, CSS, Bootstrap, SQLite, AWS S3, Heroku</li>
-                  <li>Register/login to the web app(with OAuth-based Google Sign-In).</li>
-                  <li>Search and filter songs based on language and singer.</li>
-                  <li>Create multiple playlists and add/remove songs to/from playlist.</li>
-                  <li>Scroll through recently played/viewed songs.</li>
-
-
-                </ul>
-                <div class="card-action">
-                  <a aria-label="Visit " href="https://galvanic-music.herokuapp.com/" target="_blank" data-position="top"
-                    data-tooltip="View Online"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-external-link"></i></a>
-                  <a aria-label="Visit the GitHub repo for  project" href="https://github.com/vedant3122/music-player"
-                    target="_blank" data-position="top" data-tooltip="View Source"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-github"></i></a>
-                </div>
-              </div>
+        <div class="work-grid">
+          <!-- 1 -->
+          <article class="card card--flagship reveal">
+            <p class="card-eyebrow">Owlbyte <span class="flag">flagship</span></p>
+            <h3>Dopamyn</h3>
+            <p class="card-sub">AI Growth &amp; Outreach Platform</p>
+            <p class="card-desc">An AI-powered platform for growing and running outreach on X (Twitter): audience/ICP intelligence, automated and AI-personalized DM campaigns, a CRM, and a Claude MCP connector.</p>
+            <div class="tags">
+              <span class="tag">Next.js</span><span class="tag">FastAPI</span><span class="tag">PostgreSQL</span><span class="tag">AWS</span><span class="tag">Clerk</span>
             </div>
-          </div>
-
-          <div class="col s12 m6 l4">
-            <div class="card medium">
-              <div class="card-image waves-effect waves-block waves-light">
-                <img alt="quiz app" src="/assets/img/project-quizup-logo-1.png" style="height: 100%; width: 100%" class="activator" />
-              </div>
-              <div class="card-content">
-                <span class="card-title activator teal-text hoverline">Quiz Web-App<i
-                    class="mdi-navigation-more-vert right"></i></span>
-                <p>
-                  A quiz playing web app based on Django
-                </p>
-              </div>
-              <div class="card-reveal">
-                <!-- TODO: change this -- only close button -->
-                <!-- <span class="card-title brown-text">Accomplishments<i class="mdi-navigation-close right"></i></span> -->
-                <span class="card-title grey-text"><small>Accomplishments</small><i
-                    class="mdi-navigation-close right"></i></span>
-                <ul>
-                  <li><b>Tools:</b> Django, HTML, CSS, Bootstrap, SQLite, Heroku</li>
-                  <li>Register/login to the web app(with OAuth-based Google Sign-In).</li>
-                  <li>Play Quiz and see the leaderboard</li>
-
-                </ul>
-                <div class="card-action">
-                  <a aria-label="Visit " href="https://quiz-up-app.herokuapp.com/" target="_blank" data-position="top"
-                    data-tooltip="View Online"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-external-link"></i></a>
-                  <a aria-label="Visit the GitHub repo for  project" href="https://github.com/vedant3122/QuizUp"
-                    target="_blank" data-position="top" data-tooltip="View Source"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-github"></i></a>
-                </div>
-              </div>
+            <div class="card-foot">
+              <a class="card-link" href="https://dopamyn.ai" target="_blank" rel="noopener">Visit dopamyn.ai <span class="arrow" aria-hidden="true">↗</span></a>
             </div>
-          </div>
+          </article>
 
-
-          <!-- Flask Project -->
-          <div class="col s12 m6 l4">
-            <div class="card medium">
-              <div class="card-image waves-effect waves-block waves-light">
-                <img alt="Screenshot of web app" src="/assets/img/project-blog-logo.jpg"
-                style="height: 100%; width: 100%" class="activator" />
-              </div>
-              <div class="card-content">
-                <span class="card-title activator teal-text hoverline">Blog Web-App<i
-                    class="mdi-navigation-more-vert right"></i></span>
-                <p>
-                  A simple and extensible blog web-app based on Flask.
-                </p>
-              </div>
-              <div class="card-reveal">
-                <!-- TODO: change this -- only close button -->
-                <!-- <span class="card-title brown-text">Accomplishments<i class="mdi-navigation-close right"></i></span> -->
-                <span class="card-title teal-text"><small>Accomplishments</small><i
-                    class="mdi-navigation-close right"></i></span>
-                <ul>
-                  <li><b>Tools:</b> HTML, CSS, Bootstrap, Flask, SQLAlchemy, Postgresql, Python</li>
-                  <li>Users can view posts and contact the admin via Contact Page.</li>
-                  <li>Admin can Add, Delete, Update posts.</li>
-
-
-                </ul>
-                <div class="card-action">
-                  <a aria-label="Visit Blog website" href="https://flask-heroku-blog.herokuapp.com/" target="_blank" data-position="top"
-                    data-tooltip="View Online"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-external-link"></i></a>
-                  <a aria-label="Visit the GitHub repo for  project" href="https://github.com/vedant3122/flask-blog"
-                    target="_blank" data-position="top" data-tooltip="View Source"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-github"></i></a>
-                </div>
-              </div>
+          <!-- 2 -->
+          <article class="card reveal">
+            <p class="card-eyebrow">Owlbyte</p>
+            <h3>AskRoger</h3>
+            <p class="card-sub">Real-time Social-Intelligence Dashboard</p>
+            <p class="card-desc">A live dashboard streaming thousands of cashtag metrics over WebSockets (Centrifuge), with a custom charting plugin and embeddable widgets that correlate social activity with market prices — plus tier-based access and crypto-payment subscriptions.</p>
+            <div class="tags">
+              <span class="tag">React</span><span class="tag">WebSockets</span><span class="tag">Centrifuge</span><span class="tag">D3</span>
             </div>
-          </div>
-
-          <!-- VQA -->
-          <div class="col s12 m6 l4">
-            <div class="card medium">
-              <div class="card-image waves-effect waves-block waves-light">
-                <img alt="Screenshot of  web app" src="/assets/img/project-aim_bert-bias.png" style="height: 100%; width: 100%" class="activator" />
-              </div>
-              <div class="card-content">
-                <span class="card-title activator teal-text hoverline">Visual Question Answering<i
-                    class="mdi-navigation-more-vert right"></i></span>
-                <p>
-                  An attention-based classification model that aims at generating an answer for a given input image.
-                </p>
-              </div>
-              <div class="card-reveal">
-                <!-- TODO: change this -- only close button -->
-                <!-- <span class="card-title brown-text">Accomplishments<i class="mdi-navigation-close right"></i></span> -->
-                <span class="card-title teal-text"><small>Accomplishments</small><i
-                    class="mdi-navigation-close right"></i></span>
-                <ul>
-                  <li>Incorporated Convolution Neural Networks (CNN) for extracting image features and Long Short Term
-                    Memory for extracting question
-                    embeddings.</li>
-                  <li>Tested the model on the COCO dataset, abstract scenes images, and got 69% overall accuracy on the
-                    VQA evaluation metric.</li>
-
-                </ul>
-                <div class="card-action">
-                  <a aria-label="Visit the GitHub repo for  project"
-                    href="https://github.com/vedant3122/visual-question-answering" target="_blank"
-                    data-position="top" data-tooltip="View Source"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-github"></i></a>
-                </div>
-              </div>
+            <div class="card-foot">
+              <span class="card-private"><span aria-hidden="true">🔒</span> Private product</span>
             </div>
-          </div>
+          </article>
 
-          <!-- Video Summarizer -->
-          <div class="col s12 m6 l4">
-            <div class="card medium">
-              <div class="card-image waves-effect waves-block waves-light">
-                <img alt="Screenshot of  web app" src="/assets/img/computer-vision-v2-04.png" style="height: 100%; width: 100%" class="activator" />
-              </div>
-              <div class="card-content">
-                <span class="card-title activator teal-text hoverline">Video Summarizer<i
-                    class="mdi-navigation-more-vert right"></i></span>
-                <p>
-                  A Seq2Seq model that generates a short summary of the given input video.
-                </p>
-              </div>
-              <div class="card-reveal">
-                <!-- TODO: change this -- only close button -->
-                <!-- <span class="card-title brown-text">Accomplishments<i class="mdi-navigation-close right"></i></span> -->
-                <span class="card-title brown-text"><small>Accomplishments</small><i
-                    class="mdi-navigation-close right"></i></span>
-                <ul>
-                  <li>Incorporated CNN to detect and classify objects in the video frames and Long Short Term Memory for
-                    generating a summary.</li>
-                  <li>Evaluated the model on MSVD (Microsoft Video Description Corpus) dataset; achieved 0.77, 0.71,
-                    0.52 scores respectively on ROGUE,
-                    BLEU, METEOR evaluation metrics.</li>
-
-                </ul>
-                <!-- TODO: UPLOAD THIS PROJECT ON GITHUB -->
-                <div class="card-action">
-                  <a aria-label="Visit the GitHub repo for  project" href="https://github.com/vedant3122/"
-                    target="_blank" data-position="top" data-tooltip="View Source"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-github"></i></a>
-                </div>
-              </div>
+          <!-- 3 -->
+          <article class="card reveal">
+            <p class="card-eyebrow">Owlbyte</p>
+            <h3>Graph Intelligence Engine</h3>
+            <p class="card-sub">Social / Narrative Graph</p>
+            <p class="card-desc">An automated Neo4j system that maps relationships between Twitter accounts and crypto assets, synced daily via scheduled jobs, exposed through a MySQL→Neo4j pipeline and a Lambda / API-Gateway REST API.</p>
+            <div class="tags">
+              <span class="tag">Neo4j</span><span class="tag">MySQL</span><span class="tag">AWS Lambda</span><span class="tag">Python</span>
             </div>
-          </div>
-
-          <!-- Image Generator -->
-          <div class="col s12 m6 l4">
-            <div class="card medium">
-              <div class="card-image waves-effect waves-block waves-light">
-                <img alt="Screenshot of  web app" src="/assets/img/gan.jpg" style="height: 100%; width: 100%" class="activator" />
-              </div>
-              <div class="card-content">
-                <span class="card-title activator teal-text hoverline">Image Generator<i
-                    class="mdi-navigation-more-vert right"></i></span>
-                <p>
-                  An image generator based on the concept of adversarial networks (GANs)
-                </p>
-              </div>
-              <div class="card-reveal">
-                <!-- TODO: change this -- only close button -->
-                <!-- <span class="card-title brown-text">Accomplishments<i class="mdi-navigation-close right"></i></span> -->
-                <span class="card-title brown-text"><small>Accomplishments</small><i
-                    class="mdi-navigation-close right"></i></span>
-                <ul>
-                  <li>Developed system was tested on a human-face database and loss was calculated by comparing the PCAs
-                    of generated and original image.</li>
-                  <li>Calculated difference in PCA was less than 10%, depicting the successful generation of an image by
-                    the generator.</li>
-
-                </ul>
-                <div class="card-action">
-                  <a aria-label="Visit the GitHub repo for  project" href="https://github.com/vedant3122/"
-                    target="_blank" data-position="top" data-tooltip="View Source"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-github"></i></a>
-                </div>
-              </div>
+            <div class="card-foot">
+              <span class="card-private"><span aria-hidden="true">🔒</span> Internal engine</span>
             </div>
-          </div>
+          </article>
 
-          <!-- Head Counting System -->
-          <div class="col s12 m6 l4">
-            <div class="card medium">
-              <div class="card-image waves-effect waves-block waves-light">
-                <img alt="Screenshot of  web app" src="/assets/img/Blog-Images-Forget-Machine-Learning-Humans-Still-Have-a-Lot-to-Learn-Part-II.jpg" style="height: 100%; width: 100%" class="activator" />
-              </div>
-              <div class="card-content">
-                <span class="card-title activator teal-text hoverline">Head Counting System<i
-                    class="mdi-navigation-more-vert right"></i></span>
-                <p>
-                  A system that calculates the attendance of the class from a panoramic image of a live classroom.
-                </p>
-              </div>
-              <div class="card-reveal">
-                <!-- TODO: change this -- only close button -->
-                <!-- <span class="card-title brown-text">Accomplishments<i class="mdi-navigation-close right"></i></span> -->
-                <span class="card-title brown-text"><small>Accomplishments</small><i
-                    class="mdi-navigation-close right"></i></span>
-                <ul>
-                  <li>Used Singular Value Decomposition for image compression; applied various image processing
-                    techniques and morphological operations to
-                    detect the number of heads.</li>
-
-                </ul>
-                <div class="card-action">
-                  <a aria-label="Visit the GitHub repo for  project"
-                    href="https://github.com/vedant3122/visual-question-answering" target="_blank"
-                    data-position="top" data-tooltip="View Source"
-                    class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped"><i
-                      class="fa fa-github"></i></a>
-                </div>
-              </div>
+          <!-- 4 -->
+          <article class="card reveal">
+            <p class="card-eyebrow">Owlbyte</p>
+            <h3>X-Alpha</h3>
+            <p class="card-sub">Trading Overlay Chrome Extension</p>
+            <p class="card-desc">A browser extension that injects real-time price charts and sentiment metrics directly into social feeds, correlating token moves with social mentions.</p>
+            <div class="tags">
+              <span class="tag">React</span><span class="tag">Chrome Extension</span><span class="tag">Lightweight Charts</span><span class="tag">D3</span>
             </div>
-          </div>
+            <div class="card-foot">
+              <span class="card-private"><span aria-hidden="true">🔒</span> Private product</span>
+            </div>
+          </article>
 
-          <!-- ************* -->
+          <!-- 5 -->
+          <article class="card reveal">
+            <p class="card-eyebrow">Personal</p>
+            <h3>YouTube Ad Intelligence Engine</h3>
+            <p class="card-sub">Agentic AI Extension</p>
+            <p class="card-desc">A React (WXT) extension that runs AI-driven analysis of YouTube ads: an agentic workflow (local n8n + AI agents) analyzes transcripts for transparency, caching results in Supabase for instant repeat lookups.</p>
+            <div class="tags">
+              <span class="tag">React</span><span class="tag">WXT</span><span class="tag">n8n</span><span class="tag">Supabase</span><span class="tag">AI Agents</span>
+            </div>
+            <div class="card-foot">
+              <span class="card-private"><span aria-hidden="true">🧪</span> Side project</span>
+            </div>
+          </article>
+
+          <!-- 6 -->
+          <article class="card reveal">
+            <p class="card-eyebrow">Project</p>
+            <h3>Sentiment Analysis</h3>
+            <p class="card-sub">Deep-Learning NLP</p>
+            <p class="card-desc">LSTM / BiLSTM models capturing sentiment across ~92k diverse texts, reaching a 0.68 F1 score via dynamic dropout, cross-validation, and hyperparameter tuning.</p>
+            <div class="tags">
+              <span class="tag">Python</span><span class="tag">Keras</span><span class="tag">NLP</span>
+            </div>
+            <div class="card-foot">
+              <span class="card-private"><span aria-hidden="true">🧪</span> Academic project</span>
+            </div>
+          </article>
         </div>
       </div>
     </section>
 
-    <!-- Fifth Section: Skills -->
-    <section id="skills" class="section scrollspy">
-      <h3 class="page-title white-text teal">Skills</h3>
+    <!-- ================================================ WRITING CALLOUT -->
+    <section class="writing" id="writing" aria-labelledby="writing-heading">
       <div class="container">
-        <!-- Languages and Databases -->
-        <div class="card">
-          <div class="card-content">
-            <h4 class="brown-text light">Languages and Databases</h4>
-            <div class="row text-center">
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/python-logo-1-300x300.jpg" class="responsive-img" />Python
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/html5-300x300.jpg" class="responsive-img" />HTML5
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/css3-300x300.jpg" class="responsive-img" />CSS3
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/mysql-logo-1-300x300.jpg" class="responsive-img" />MySQL
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/postgresql-logo.png" class="responsive-img" />PostgreSQL
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/shell-logo-1-300x300.jpg" class="responsive-img" />Shell Scripting
-              </div>
-            </div>
+        <div class="writing-card reveal">
+          <div class="writing-emoji" aria-hidden="true">✍️</div>
+          <div class="writing-body">
+            <span class="writing-eyebrow">From the blog</span>
+            <h2 id="writing-heading">I write, too.</h2>
+            <p>When I learn something the hard way — a gnarly bug, a data-pipeline lesson, a security slip — I write it up. Pull up a chair and read a few.</p>
+          </div>
+          <div class="writing-cta">
+            <a class="btn btn-warm" href="/blog/">Read the blog <span class="arrow" aria-hidden="true">→</span></a>
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="card">
-          <div class="card-content">
-            <h4 class="brown-text light">Libraries</h4>
-            <div class="row text-center">
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/numpy-logo-1-500x500.jpg" class="responsive-img" />NumPy
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/pandas-logo-2-500x500.jpg" class="responsive-img" />Pandas
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/opencv-logo-1-500x500.jpg" class="responsive-img" />OpenCV
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/sk-learn-logo-1-500x500.jpg" class="responsive-img" />scikit-learn
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/matplotlib-logo-1-500x500.jpg" class="responsive-img" />matplotlib
-              </div>
-            </div>
-          </div>
+    <!-- ======================================================== SKILLS -->
+    <section class="section" id="skills" aria-labelledby="skills-heading">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Skills</p>
+          <h2 id="skills-heading">My toolkit</h2>
         </div>
 
-        <!-- Frameworks -->
-        <div class="card">
-          <div class="card-content">
-            <h4 class="brown-text light">Frameworks</h4>
-            <div class="row text-center">
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/bootstrap.png" class="responsive-img" />Bootstrap
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/keras-logo.png" class="responsive-img" />Keras
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/tensorflow-logo-1.png" class="responsive-img" />TensorFlow
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/pytorch-logo.png" class="responsive-img" />PyTorch
-              </div>
+        <div class="skills-grid">
+          <div class="skill-group reveal">
+            <h3>Languages</h3>
+            <div class="tags">
+              <span class="tag">JavaScript</span><span class="tag">TypeScript</span><span class="tag">Python</span><span class="tag">C++</span><span class="tag">SQL</span><span class="tag">HTML/CSS</span>
             </div>
           </div>
-        </div>
-
-        <!-- Other -->
-        <div class="card">
-          <div class="card-content">
-            <h4 class="brown-text light">Other</h4>
-            <div class="row text-center">
-
-
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/git.png" class="responsive-img" />Git
-              </div>
-              <div class="col s4 m2">
-                <img alt="" src="/assets/img/aws.png" class="responsive-img" />AWS
-              </div>
+          <div class="skill-group reveal">
+            <h3>Frontend</h3>
+            <div class="tags">
+              <span class="tag">React</span><span class="tag">Next.js</span><span class="tag">D3</span><span class="tag">Lightweight Charts</span>
+            </div>
+          </div>
+          <div class="skill-group reveal">
+            <h3>Backend</h3>
+            <div class="tags">
+              <span class="tag">Node.js</span><span class="tag">Express</span><span class="tag">FastAPI</span><span class="tag">REST</span><span class="tag">WebSockets</span>
+            </div>
+          </div>
+          <div class="skill-group reveal">
+            <h3>Data &amp; Cloud</h3>
+            <div class="tags">
+              <span class="tag">PostgreSQL</span><span class="tag">MySQL</span><span class="tag">MongoDB</span><span class="tag">Neo4j</span><span class="tag">AWS (Lambda, RDS, Redshift, Timestream, EC2)</span><span class="tag">Airflow</span>
+            </div>
+          </div>
+          <div class="skill-group reveal">
+            <h3>AI &amp; Tooling</h3>
+            <div class="tags">
+              <span class="tag">Agentic workflows (n8n)</span><span class="tag">MCP</span><span class="tag">OpenAI Codex</span><span class="tag">Claude</span><span class="tag">Git</span><span class="tag">CI/CD</span>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Seventh Section: Education -->
-    <section id="education" class="section scrollspy">
-      <h3 class="page-title white-text teal">Education</h3>
+    <!-- ===================================================== EDUCATION -->
+    <section class="section" id="education" aria-labelledby="edu-heading">
       <div class="container">
-        <div class="row">
-          <!-- Education -->
-          <div class="col s12 m6 l6">
-            <div class="card">
-              <div class="card-content">
-                <p>
-                  <span class="card-title"><a href="https://www.iitk.ac.in/" target="_blank" class="teal-text hoverline">IIT Kanpur</a></span>
-                </p>
-                <p class="brown-text">Kanpur, India</p>
-                <p>
-                  <b>Degree: </b>Bachelor of Material Sience and Engineering     
-                </p>
-                <p>Minor in Machine Learning</p>
+        <div class="section-head">
+          <p class="eyebrow">Education</p>
+          <h2 id="edu-heading">Where I studied</h2>
+        </div>
 
-                <ul>
-                  <p>
-                    <b>Relevant Courseworks:</b>
-                  <ul>
-                    <li>Data Structure and Algorithm</li>
-                    <li>Introduction to Machine Learning</li>
-                    <li>Statistical Natural Language Processing</li>
-                    <li>Introduction to Cognitive Science </li>
-                    <li>Introduction to Psycholinguistics</li>
-                    <li>Decision Making and the Brain</li>                    
-                  </ul>
-                  </p>
-
-                </ul>
-              </div>
+        <div class="edu-card reveal">
+          <div class="edu-mark" aria-hidden="true">🎓</div>
+          <div class="edu-body">
+            <h3>Indian Institute of Technology Kanpur</h3>
+            <p class="edu-degree">B.Tech — Materials Science &amp; Engineering · Minor: Machine Learning</p>
+            <div class="edu-meta">
+              <span>Nov 2020 – April 2024</span>
+              <span aria-hidden="true">·</span>
+              <span>GPA 7.2 / 10</span>
             </div>
+            <p class="edu-course"><strong>Relevant coursework:</strong> Data Structures &amp; Algorithms · Machine Learning · Statistical NLP</p>
           </div>
-    </section>
-
-    <!-- Eight Section: Contact -->
-    <section id="contact" >
-      <h3 class="page-title white-text teal">Contact</h3>
-      <div class="container">
-        <div class="contact-icons">
-          <a aria-label="Email Vedant" href="mailto:vedantdangi3122@gmail.com" target="_blank" data-position="top"
-            data-tooltip="Email Vedant" class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped contact-icon"><i
-              class="fa fa-envelope"></i></a>
-          <a aria-label="View Vedant on GitHub" href="http://github.com/vedant3122" target="_blank"
-            data-position="top" data-tooltip="View Vedant on GitHub"
-            class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped contact-icon"><i class="fa fa-github"></i></a>
-          <a aria-label="View Vedant on LinkedIn" href="http://linkedin.com/in/vedantdangi" target="_blank"
-            data-position="top" data-tooltip="View Vedant on LinkedIn"
-            class="btn-floating btn-large waves-effect waves-light blue-grey tooltipped contact-icon"><i class="fa fa-linkedin"></i></a>
         </div>
       </div>
     </section>
-    
+
+    <!-- ======================================================= CONTACT -->
+    <section class="section" id="contact" aria-labelledby="contact-heading">
+      <div class="container">
+        <div class="contact-card reveal">
+          <p class="eyebrow">Say hello</p>
+          <h2 id="contact-heading">Get in touch</h2>
+          <p class="contact-sub">The fastest way to reach me is email — or find me on GitHub and LinkedIn.</p>
+          <a class="contact-email" href="mailto:vedantdangi3122@gmail.com">
+            <span aria-hidden="true">✉️</span> vedantdangi3122@gmail.com
+          </a>
+          <div class="contact-links">
+            <a class="btn btn-ghost" href="https://github.com/vedant312" target="_blank" rel="noopener">GitHub</a>
+            <a class="btn btn-ghost" href="https://linkedin.com/in/vedantdangi" target="_blank" rel="noopener">LinkedIn</a>
+            <a class="btn btn-ghost" href="assets/Vedant_Dangi_Resume.pdf" target="_blank" rel="noopener">Résumé ↗</a>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <!-- typed.js -->
-  <script src="assets/vendor/typed.js/typed.min.js"></script>
-  <script type="text/javascript">
-    var typed = new Typed('.typing',{
-      strings: ["Developer","Analyst", "Fast Learner"],
-      loop: true,
-      typeSpeed: 80,
-      backSpeed: 40
-    });
-  </script>
+  <!-- ======================================================== FOOTER -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <a class="brand" href="#top">Vedant Dangi<span class="brand-dot">.</span></a>
+        <p class="footer-copy">© 2026 Vedant Dangi</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://github.com/vedant312" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://linkedin.com/in/vedantdangi" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="mailto:vedantdangi3122@gmail.com">Email</a>
+        <a href="/blog/">Blog</a>
+        <a href="assets/Vedant_Dangi_Resume.pdf" target="_blank" rel="noopener">Résumé</a>
+      </nav>
+    </div>
+  </footer>
 
-
-  <!-- jQuery-->
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
-
-  <!-- Materialize - Compiled and minified JavaScript-->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.95.3/js/materialize.min.js"></script>
-  <script>
-    // Materialize - Initializers
-    $(document).ready(function () {
-      $(".scrollspy").scrollSpy()
-      // Initialize collapse button
-      $(".button-collapse").sideNav({
-        menuWidth: 190, // Default is 240
-        edge: "left", // Choose the horizontal origin
-        closeOnClick: true // Closes side-nav on <a> clicks, useful for Angular/Meteor
-      })
-    })
-  </script>
+  <script src="assets/js/portfolio.js" defer></script>
 </body>
-
 </html>
