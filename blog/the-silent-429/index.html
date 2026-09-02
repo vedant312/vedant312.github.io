@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Silent 429</title>
+<meta name="description" content="A field guide to the X API's error taxonomy — why one 429 has three independent causes, why you can't trust the error's prose, and how pay-per-use turned 'slow down' into 'you're out of money'.">
+<meta property="og:title" content="The Silent 429">
+<meta property="og:description" content="A field guide to the X API's error taxonomy — why one 429 has three independent causes, why you can't trust the error's prose, and how pay-per-use turned 'slow down' into 'you're out of money'.">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<link rel="stylesheet" href="/blog/style.css">
+</head>
+<body>
+
+<div class="page">
+
+  <nav class="sitenav">
+    <a class="home" href="/">← Home</a>
+    <a href="/blog/">All posts</a>
+  </nav>
+
+  <header class="masthead">
+    <p class="eyebrow">Field notes · X API</p>
+    <h1>The Silent 429</h1>
+    <p class="standfirst">
+      The X API answers in HTTP status codes, and it overloads them. The worst offender is
+      <code>429</code>: it has <strong>three independent causes</strong>, one of which — since X went
+      pay-per-use — now means <strong>“you are out of money for the month,”</strong> not “slow down for
+      fifteen minutes.” Read it as the second and your campaigns sit at “Running,” send nothing, and
+      never fire an alert. Here is the real error taxonomy, what the docs say versus what we measured,
+      and the rules that keep a status code from lying to you.
+    </p>
+    <div class="byline">
+      <span>Verified against the X API docs, Sept 2026</span>
+      <span>·</span>
+      <span>War stories measured on live traffic</span>
+      <span>·</span>
+      <span>Prices move — check current</span>
+    </div>
+
+    <aside class="llm-shortcut">
+      <a href="#llm">
+        <span class="llm-shortcut__eyebrow">🤖 In a hurry?</span>
+        <span class="llm-shortcut__title">Just want the LLM context?</span>
+        <span class="llm-shortcut__body">No shame in it — skip the field guide and grab the paste-ready error/limit rules for your AI.</span>
+        <span class="llm-shortcut__cta">Skip to the good part <span aria-hidden="true">→</span></span>
+      </a>
+    </aside>
+  </header>
+
+  <main class="prose">
+
+    <section id="why">
+      <span class="section-mark">Why you are here</span>
+      <h2>The dashboard says “Running.” Nothing is sending. Nothing errored.</h2>
+      <p>
+        Every campaign is green. The workers are up, the tokens are valid, the last log line is an
+        ordinary “rescheduled.” And not a single message has gone out in hours. There is no exception in
+        your tracker, no alert in your channel, nothing red anywhere — because from your code's point of
+        view, nothing failed. It just keeps politely waiting fifteen minutes and trying again, forever.
+      </p>
+      <p>
+        What happened is that the X API returned a <code>429</code>, your code read it as a rate-limit
+        window, and rescheduled. But that particular <code>429</code> did not mean “too fast.” It meant
+        “you have spent your monthly allowance.” No amount of waiting will clear it until the billing
+        cycle rolls, and it will not announce itself any differently from the transient kind. This post
+        is about why one status code carries that much ambiguity, and how to stop it from failing you
+        silently.
+      </p>
+    </section>
+
+    <section id="model">
+      <span class="section-mark">01 · The mental model</span>
+      <h2>The status code is the wire, not the reason</h2>
+      <p>
+        The X v2 API leans hard on HTTP status codes, and a handful of them each cover several unrelated
+        situations. A <code>403</code> is “valid auth, but not allowed” — which could be a protected
+        account, an app without the right access level, or a suspended user. A <code>404</code> is
+        “gone” — deleted, never existed, or (on some endpoints) an auth failure wearing a not-found
+        costume. And <code>429</code>, the one that will actually hurt you, means <em>at least</em> three
+        different things.
+      </p>
+      <p>
+        The status code tells you the <strong>class</strong> of outcome. It does not tell you the
+        <strong>reason</strong>, and — critically — it does not tell you whether waiting will help. Two
+        <code>429</code>s can be identical on the wire and require opposite responses: back off and retry,
+        or stop and alert a human. If your handler branches on the status code alone, it is guessing.
+      </p>
+    </section>
+
+    <section id="counters">
+      <span class="section-mark">02 · One 429, three counters</span>
+      <h2>Three independent limits, one indistinguishable status</h2>
+      <p>
+        X's own documentation is explicit that <strong>rate limits and billing are independent</strong>:
+        you can be well within your rate limits and still be blocked for spend, or burn through a rate
+        limit at no extra cost. What the docs do not put in one place is that <em>three</em> separate
+        counters all surface as the same <code>429</code>:
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Counter</th><th>Window</th><th>What clears it</th><th>Right response</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Per-endpoint window</td><td>15 min (some /sec)</td><td>The reset timestamp</td><td>Back off, retry</td></tr>
+            <tr><td>Posting / write cap</td><td>24 hours (per-user <em>and</em> per-app)</td><td>Midnight-ish rolling</td><td>Wait hours, spread load</td></tr>
+            <tr><td>Usage / billing cap</td><td>Monthly</td><td>The billing cycle</td><td><strong>Stop. Alert a human.</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        The window limit is the friendly one, and it comes with instructions. Every response carries three
+        headers:
+      </p>
+      <pre><code>x-rate-limit-limit:     900      # ceiling for this window
+x-rate-limit-remaining: 847      # what's left
+x-rate-limit-reset:     1705420800   # unix seconds until it refills</code></pre>
+      <p>
+        A genuine window <code>429</code> hands you <code>x-rate-limit-reset</code> — a near-future
+        instant — and the documented recovery is simply to wait until then and retry, with exponential
+        backoff if you keep colliding. Note that the window limits are <em>doubled</em>: every endpoint
+        keeps a separate counter for per-user tokens (OAuth 1.0a / OAuth 2.0 user context) and for
+        app-only bearer tokens. <code>POST /2/tweets</code>, for instance, is 100 per 15 minutes per user
+        but 10,000 per 24 hours per app — two different ceilings you can hit for the same call.
+      </p>
+
+      <figure>
+        <div class="figframe">
+          <svg viewBox="0 0 720 300" role="img" aria-label="Three independent counters — a 15-minute window limit, a 24-hour posting cap, and a monthly usage or billing cap — all return the same HTTP 429. A handler that assumes 'window' reschedules in 15 minutes and loops forever when the real cause is the monthly cap, leaving campaigns Running while nothing sends.">
+            <defs>
+              <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+              <marker id="a-alarm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9E2B1E"/></marker>
+            </defs>
+
+            <rect x="10" y="20" width="188" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="104" y="45" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="currentColor">Window limit · 15 min</text>
+
+            <rect x="10" y="80" width="188" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="104" y="105" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="currentColor">Posting cap · 24 h</text>
+
+            <rect x="10" y="140" width="188" height="40" rx="4" fill="none" stroke="#9E2B1E" stroke-width="1.5"/>
+            <text x="104" y="160" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="#9E2B1E">Usage cap · monthly</text>
+            <text x="104" y="174" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#9E2B1E">= out of money</text>
+
+            <line x1="198" y1="40" x2="300" y2="92" stroke="currentColor" stroke-width="1.2" marker-end="url(#a)"/>
+            <line x1="198" y1="100" x2="300" y2="100" stroke="currentColor" stroke-width="1.2" marker-end="url(#a)"/>
+            <line x1="198" y1="160" x2="300" y2="108" stroke="#9E2B1E" stroke-width="1.5" marker-end="url(#a-alarm)"/>
+
+            <rect x="300" y="80" width="120" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <text x="360" y="105" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="currentColor">HTTP 429</text>
+
+            <line x1="420" y1="100" x2="500" y2="100" stroke="currentColor" stroke-width="1.2" marker-end="url(#a)"/>
+            <text x="460" y="92" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor">handler</text>
+
+            <rect x="500" y="80" width="210" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="605" y="105" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="currentColor">assumes “window” → wait 15m</text>
+
+            <path d="M605 120 L605 150 L360 150 L360 122" fill="none" stroke="#9E2B1E" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a-alarm)"/>
+            <text x="482" y="168" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="600" fill="#9E2B1E">loops forever — nothing sends</text>
+
+            <line x1="10" y1="212" x2="710" y2="212" stroke="currentColor" stroke-width="1" opacity="0.28"/>
+            <text x="10" y="238" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">A window 429 carries a near-future x-rate-limit-reset. A cap 429 does not —</text>
+            <text x="10" y="256" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">so an absent or far reset is your signal to STOP and alert, not to wait.</text>
+          </svg>
+        </div>
+        <figcaption>
+          The three counters are indistinguishable at the status line. The only in-band tell is the
+          reset header: a real window limit hands you a near-future <code>x-rate-limit-reset</code>; the
+          24-hour and monthly caps do not, and X's usage-cap responses frequently omit it entirely.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section id="body">
+      <span class="section-mark">03 · The error body</span>
+      <h2>You cannot trust the sentence, only the shape</h2>
+      <p>
+        X's v2 errors are shaped after RFC 9457 <em>Problem Details</em> — a JSON object with a
+        machine-readable <code>type</code> URI, a short <code>title</code>, a human <code>detail</code>,
+        and sometimes a <code>status</code>:
+      </p>
+      <pre><code>{
+  "title":  "Invalid Request",
+  "detail": "The `query` parameter is required.",
+  "type":   "https://api.x.com/2/problems/invalid-request"
+}</code></pre>
+      <p>
+        The <code>type</code> URI is the part you should branch on — it is stable and enumerable:
+        <code>invalid-request</code>, <code>resource-not-found</code>,
+        <code>not-authorized-for-resource</code>, <code>client-forbidden</code>,
+        <code>usage-capped</code>, <code>rate-limit-exceeded</code>, and a generic
+        <code>about:blank</code>. The <code>detail</code> sentence is for humans, and it is a trap: it
+        is free text, it changes, and on some endpoints it embeds user-supplied values.
+      </p>
+      <div class="oneway">
+        <span class="tag">Format is not a contract</span>
+        <p>
+          The v2 errors only <em>approximate</em> Problem Details — the shape is inconsistent across
+          endpoints. Some return <code>title/type/status/detail</code>; others hand you
+          <code>message/title/detail/type</code>; the older <code>{"errors":[{"code":88,"message":"…"}]}</code>
+          array still appears on rate-limit responses. Parse defensively: read the fields that exist,
+          key your logic off <code>type</code> and the HTTP status, and never assume every endpoint
+          agrees on field names.
+        </p>
+      </div>
+    </section>
+
+    <section id="prose">
+      <span class="section-mark">04 · Prose is not a category</span>
+      <h2>Classify on structure, or a username will page you</h2>
+      <p>
+        Here is the mistake, because we made it. Failure classification substring-matched the human
+        message for words like <code>quota</code>, <code>credit</code>, <code>rate limit</code>,
+        <code>daily</code>, <code>monthly</code>. It worked in testing. Then a routine <code>403</code>
+        went out whose <code>detail</code> embedded the recipient's handle — a handle that happened to
+        contain the substring <strong>“daily.”</strong> The <code>403</code> classified as
+        <em>credit exhaustion</em>, paged the on-call, and — worse — armed a sixty-minute throttle on
+        “credit alerts” for that sender, muting the alerts that would have been <em>real</em>.
+      </p>
+      <p>
+        The fix is not a better word list. The word list is the bug. The API already told us the
+        category structurally: the response was a <code>403</code> with a <code>forbidden</code>-family
+        <code>type</code>, and our own client had captured <code>status_code</code> and a normalized
+        <code>error_code</code> at the boundary — the classifier just never read them. <strong>A failure's
+        category is a function of its status code and problem <code>type</code>, never of its
+        prose.</strong> The moment you find yourself lowercasing an error message and calling
+        <code>in</code> on it, you have written a bug that a customer's username will trigger.
+      </p>
+    </section>
+
+    <section id="codes">
+      <span class="section-mark">05 · A status-code field guide</span>
+      <h2>What each code really means on this API</h2>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Code</th><th>Documented</th><th>What it also means here</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>400</code></td><td>Bad request — invalid JSON, malformed query, missing params</td><td>Your query builder emitted something X won't parse. See §07 — a valid-shaped but empty query does <em>not</em> 400.</td></tr>
+            <tr><td><code>401</code></td><td>Invalid or missing credentials</td><td>On a data provider, a <strong>bad</strong> key. Distinct, and useful — see the note below.</td></tr>
+            <tr><td><code>403</code></td><td>Valid auth, no permission</td><td>Protected account, wrong access level, suspended user — or a usage error that didn't get a 429. Do not infer “this recipient is protected” from a 403 during an outage.</td></tr>
+            <tr><td><code>404</code></td><td>Resource doesn't exist / deleted</td><td>Sometimes an <em>auth</em> failure — some providers answer a bad token with 404 “Could not authenticate you.”</td></tr>
+            <tr><td><code>409</code></td><td>Conflict (filtered stream has no rules)</td><td>Very often “already done” — treat an idempotent create's 409 as success, or your reconciler reports failures forever.</td></tr>
+            <tr><td><code>429</code></td><td>Rate limit <em>or</em> usage cap exceeded</td><td>The three counters of §02. Read the reset header before you decide it's transient.</td></tr>
+            <tr><td><code>5xx</code></td><td>500 / 502 / 503 / 504 — wait and retry</td><td>Genuinely transient <em>usually</em> — but see the provider note: an over-quota upstream key can surface as a 500.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <p>
+          <strong>The status code can fingerprint an upstream key.</strong> When we ran X data through a
+          third-party provider, the HTTP status told us the key's exact state without a body: a
+          <em>bad</em> key returned <code>401</code>, an <em>over-quota</em> key returned <code>500</code>,
+          a missing parameter <code>400</code>, and a bad handle <code>404</code>. The 500 is the sneaky
+          one — it reads as “their server is broken,” but it meant “rotate the key.” We only found it
+          because the primary provider hit <em>its</em> quota and we failed over for the first time at
+          volume, exposing a key that had been quietly over its limit for days.
+        </p>
+      </div>
+    </section>
+
+    <section id="billing">
+      <span class="section-mark">06 · Pay-per-use changes the stakes</span>
+      <h2>A 429 can now mean “out of money,” and a retry loop is a bill</h2>
+      <p>
+        In February 2026 X made <strong>pay-per-use the default</strong>. New projects no longer get a
+        free tier or a flat Basic/Pro subscription; reads and writes are billed per call — on the order
+        of a fraction of a cent for a post read, about a cent for a user or follower read, a cent and a
+        half to create a post, and a steep premium for posts carrying a link. (Those numbers move; treat
+        them as the shape, not the contract, and check the current sheet.) Older subscription tiers still
+        exist for grandfathered accounts, but the direction is unambiguous: <strong>every call has a
+        price, and there is a monthly ceiling on your spend.</strong>
+      </p>
+      <p>
+        This is what turns the silent <code>429</code> from an annoyance into an incident. The
+        usage/billing cap is one of the three counters, and when you hit it the API returns the same
+        <code>429</code> as a fifteen-minute window — but no amount of backoff clears it, and a naive
+        “retry on 429” loop now does two harmful things at once: it sends nothing <em>and</em>, on any
+        endpoint that bills on request rather than success, it can keep spending while it spins. A
+        runaway retry is a runaway bill.
+      </p>
+      <div class="oneway">
+        <span class="tag">The distinguishing test</span>
+        <p>
+          A window <code>429</code> carries a near-future <code>x-rate-limit-reset</code>. A usage-cap
+          <code>429</code> generally does not — the reset is absent, or so far out it's meaningless. So
+          the rule is mechanical: <strong>if a 429 has no near-future reset, stop retrying and alert.</strong>
+          Do not reschedule it into the same fifteen-minute loop as a window limit.
+        </p>
+      </div>
+    </section>
+
+    <section id="twohundred">
+      <span class="section-mark">07 · 200 is not “it worked”</span>
+      <h2>Success codes are not validation results</h2>
+      <p>
+        Two different <code>200</code>s will lie to you on this API, in opposite directions.
+      </p>
+      <p>
+        The first: a <strong>malformed query can succeed.</strong> Hand a search endpoint a query that is
+        syntactically wrong and you will often get <code>200 OK</code> with zero results — not a
+        <code>400</code>. There is no server-side signal separating “nothing matched your valid query”
+        from “your query was nonsense,” so if you let users compose raw queries, front-end validation is
+        the <em>only</em> guard you have against a silent empty state. A success code is not a validation
+        result.
+      </p>
+      <p>
+        The second: a <strong><code>200</code> can carry an <code>errors</code> array.</strong> When you
+        request several resources at once and some are unavailable — a deleted post in a lookup, a
+        suspended user in a batch — X returns <code>200</code> with the resources it could resolve in
+        <code>data</code> and the ones it could not in a sibling <code>errors</code> array. Code that
+        checks only the HTTP status treats a partial failure as a total success and silently drops the
+        missing half.
+      </p>
+      <div class="note">
+        <p>
+          The habit that covers both: on a read, assert on the <em>shape you expected</em>, not the
+          status. Did you get the number of records you asked for? Is there an <code>errors</code>
+          key? A <code>200</code> means the request was well-formed enough to answer — nothing more.
+        </p>
+      </div>
+    </section>
+
+    <section id="silent">
+      <span class="section-mark">08 · The silent failure, start to finish</span>
+      <h2>How “Running” and “sending nothing” coexist for hours</h2>
+      <p>
+        Here is the incident that this whole post is really about, assembled. A sender hit the monthly
+        usage cap. X returned <code>429</code> with a body that carried neither the word “credit” nor
+        the word “limit” — a bare <code>UsageCapExceeded</code>-shaped payload — and, being a cap rather
+        than a window, no useful reset header. Our scheduler's rate-limit branch caught the
+        <code>429</code>, did the correct thing for a <em>window</em> limit — pushed the whole sender
+        queue past the reset and fell back to a fifteen-minute retry when the header was absent — and,
+        deliberately, stayed neutral to the failure streak so a transient limit wouldn't pause a healthy
+        account.
+      </p>
+      <p>
+        Every one of those behaviors is right for a window limit and wrong for a cap. The result: the
+        campaign read <em>Running</em>, the queue rescheduled itself every fifteen minutes, the streak
+        breaker never tripped, and no alert fired — for hours — because the one branch that would have
+        alerted was the branch we didn't take. The signal was there the whole time; the code sorted it
+        into the wrong bin.
+      </p>
+      <div class="oneway">
+        <span class="tag">The fix, in one sentence</span>
+        <p>
+          Classify the <code>429</code> body distinctly — a usage/billing cap is not a window limit — and
+          give the cap its own branch that <strong>alerts and stops</strong> instead of rescheduling into
+          the retry loop. A limit that no amount of waiting can clear must never be handled by waiting.
+        </p>
+      </div>
+    </section>
+
+    <section id="body-forensics">
+      <span class="section-mark">09 · Keep the body</span>
+      <h2>The wrapper that threw away the evidence</h2>
+      <p>
+        None of the above is recoverable after the fact if your HTTP layer discards the response body on
+        error. Ours did, on one deployed branch — the provider wrapper returned
+        <code>(None, resp.status_code)</code> and dropped <code>resp.text</code> — so by the time an
+        alert fired, the only thing left was “a 429 happened,” with no <code>type</code>, no title, no
+        way to tell a window limit from a cap from a billing error. The alert was technically working and
+        completely useless.
+      </p>
+      <p>
+        Persist the triple — <strong>HTTP status, the <code>type</code> URI, and the raw body</strong> —
+        on every non-2xx, at the boundary where you still have them. A normalized <code>error_code</code>
+        is worth computing there too, so nothing downstream is tempted to re-derive the category from
+        prose (§04). The body is small; the ability to answer “what actually happened” is not.
+      </p>
+    </section>
+
+    <section id="rules">
+      <span class="section-mark">10 · Rules</span>
+      <h2>What not to do</h2>
+      <ul class="rules">
+        <li class="no"><span class="mark">✕</span><span><strong>Never treat every <code>429</code> as a transient window limit.</strong> Read <code>x-rate-limit-reset</code>; no near-future reset means a 24-hour or usage cap — stop and alert, don't loop.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never classify a failure by substring-matching the message.</strong> A username containing “daily” is not a billing event. Branch on status + problem <code>type</code>.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never discard the response body on a non-2xx.</strong> A wrapper that returns <code>(None, status)</code> makes a window limit, a cap, and a billing error indistinguishable after the fact.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never read <code>200</code> as “it worked.”</strong> A malformed query 200s with zero results, and a multi-resource 200 can carry a partial <code>errors</code> array.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never infer a per-recipient fact from a <code>403</code> during an outage.</strong> A blanket forbidden condition will flag innocent recipients as “protected” and poison the data you make decisions on later.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never assume the field names.</strong> Some endpoints send <code>title/detail/type</code>, some <code>message/…</code>, rate limits send <code>{"errors":[{"code":88}]}</code>. Read what exists.</span></li>
+        <li class="yes"><span class="mark">✓</span><span><strong>Do budget for per-call billing.</strong> Under pay-per-use a retry loop is a spend loop; a circuit breaker on the cap protects the bill as much as the account.</span></li>
+        <li class="yes"><span class="mark">✓</span><span><strong>Do give the usage cap its own branch</strong> that alerts and pauses, separate from the window-limit reschedule path.</span></li>
+        <li class="yes"><span class="mark">✓</span><span><strong>Do treat an idempotent <code>409</code> as success</strong> so your reconciler stops reporting a “failure” that already happened.</span></li>
+      </ul>
+    </section>
+
+    <section id="llm">
+      <span class="section-mark">11 · For your LLM</span>
+      <h2>The context to paste before you build this</h2>
+      <p>
+        We build against this API with heavy AI assistance, and an assistant will cheerfully write
+        “retry on 429 with backoff” because that is the textbook answer — and it is exactly the bug.
+        The context below states what is <em>true</em> of this specific API, phrased as prohibitions,
+        because that is what survives being summarized into a plan three steps later.
+      </p>
+      <div class="paste">
+        <div class="paste-head">X API — error, limit &amp; billing invariants</div>
+<pre><code># X API (v2) — error, rate-limit, and billing rules for this codebase
+
+## Facts the docs underspecify
+- A 429 has THREE independent causes: a per-endpoint 15-minute window limit,
+  a 24-hour posting/write cap (enforced per-USER and per-APP separately), and
+  the MONTHLY usage/billing cap. Rate limits and billing are INDEPENDENT.
+- The ONLY in-band tell between them is x-rate-limit-reset. A window 429 carries
+  a near-future reset; a 24h/usage cap 429 does not (absent or far away).
+- Errors approximate RFC 9457 problem+json {type, title, detail, status}, with
+  type URIs like https://api.x.com/2/problems/usage-capped. The format is
+  INCONSISTENT across endpoints (some use message/...); rate-limit 429s still
+  use the legacy {"errors":[{"code":88,"message":"Rate limit exceeded"}]}.
+- A 200 is not success: a malformed search query returns 200 + zero results
+  (no 400), and multi-resource reads return 200 with a partial `errors` array.
+- Since Feb 2026 the default is PAY-PER-USE: reads and writes bill per call.
+  A usage-cap 429 means "out of monthly spend," not "slow down."
+
+## Hard prohibitions
+- NEVER handle every 429 by waiting/retrying. If there is no near-future
+  x-rate-limit-reset, STOP and alert a human; do not reschedule into the loop.
+- NEVER classify a failure by substring-matching the human message/detail.
+  Branch on (http_status, problem_type_uri) and a normalized error_code only.
+  A 403 whose detail embeds a username containing "daily" is NOT a billing error.
+- NEVER discard the response body on a non-2xx. Persist (status, type, raw body);
+  a wrapper returning (None, status) makes the three 429s indistinguishable later.
+- NEVER treat 200 as "it worked" on a search or a multi-resource read.
+- NEVER infer "this recipient is protected/blocked" from a 403 during an outage;
+  a blanket forbidden condition poisons per-recipient inference.
+- NEVER assume field names or that a create is not idempotent — treat a 409 on an
+  idempotent create as success.
+
+## Required shape
+- Classify every failure as (http_status, problem_type_uri) -> category. Keep the
+  raw body for forensics. Compute the category ONCE, at the HTTP boundary.
+- Two 429 branches: window (has near reset) -> backoff+retry; cap (no reset) ->
+  alert + pause the sender, never auto-retry.
+- Under pay-per-use, add a spend circuit breaker: a retry loop is a bill.
+
+## Before any high-volume or paid call
+State the per-call cost and the monthly cap. A loop that retries a capped 429
+forever spends money and sends nothing while every dashboard reads "Running".</code></pre>
+      </div>
+      <p>
+        The one that matters most is the first prohibition. An assistant will not spontaneously know that
+        a <code>429</code> can be un-waitable, because the status code does not say so. You have to tell
+        it which 429s are walls, not speed bumps.
+      </p>
+    </section>
+
+    <section id="open">
+      <span class="section-mark">12 · What's documented vs. what we measured</span>
+      <h2>Where the line is</h2>
+      <p>
+        In the interest of not passing off scars as specifications: the header names, the status-code
+        meanings, the problem-details shape, the partial-<code>errors</code> behavior, and the fact that
+        rate limits and billing are independent are all in X's published docs. The three-counters-behind-one-429
+        framing, the usage-cap <code>429</code> arriving without a reset, the pay-per-use prices, and
+        every incident above are <em>measured</em> — from our own traffic and from the docs as they stood
+        in September 2026. Access levels and prices on this platform change on a schedule of their own, so
+        before you design around a number here, confirm it against the current developer docs. The
+        <em>shapes</em> are stable; the <em>quantities</em> are not.
+      </p>
+    </section>
+
+    <footer>
+      <p>
+        Written up because the failure that started it was invisible by construction: nothing errored,
+        nothing paged, and a green dashboard sat on top of a queue that had not moved in hours. The most
+        expensive bugs are the ones the system is too polite to mention.
+      </p>
+      <p>
+        If a status code has lied to you the same way — or if you know the current shape of a limit that
+        moved since this was written — that is exactly why it's public.
+      </p>
+    </footer>
+
+  </main>
+
+  <nav class="toc" aria-label="Contents">
+    <p>Contents</p>
+    <ol>
+      <li><a href="#why">Why you are here</a></li>
+      <li><a href="#model">The mental model</a></li>
+      <li><a href="#counters">One 429, three counters</a></li>
+      <li><a href="#body">The error body</a></li>
+      <li><a href="#prose">Prose is not a category</a></li>
+      <li><a href="#codes">Status-code field guide</a></li>
+      <li><a href="#billing">Pay-per-use stakes</a></li>
+      <li><a href="#twohundred">200 is not “it worked”</a></li>
+      <li><a href="#silent">The silent failure</a></li>
+      <li><a href="#body-forensics">Keep the body</a></li>
+      <li><a href="#rules">What not to do</a></li>
+      <li><a href="#llm">For your LLM</a></li>
+      <li><a href="#open">Documented vs. measured</a></li>
+    </ol>
+  </nav>
+
+</div>
+
+</body>
+</html>
