@@ -203,9 +203,12 @@
         is the one to build on: <strong>the current identity is always the published version with
         the highest <code>public_key_version</code></strong> (a millisecond timestamp). There is no
         separate "active" marker. New conversation keys must be sealed to each participant's
-        newest version, and older versions only verify old signatures. So the moment you publish,
-        your key is the one every new conversation is sealed to — and if it has no Juicebox
-        registration, the app's PIN unlock tries it first and fails.
+        newest version, and older versions only verify old signatures. The API enforces it:
+        <code>POST /2/chat/conversations/:id/keys</code> returns
+        <code>INVALID_IDENTITY_KEY_PAIR</code> for a key sealed to anything older. So the moment you
+        publish, your key is the one every new conversation is sealed to — and the official app
+        will keep using it, prompting for setup or a PIN for as long as its registration is
+        incomplete.
       </p>
       <p>
         X gave the same answer to another developer who was publishing a fresh key on every user
@@ -220,7 +223,12 @@
         <p>
           <code>POST /2/users/:id/public_keys</code> is rate-limited to 5 per 24 hours, and that
           limit is the least of it. There is no documented public API to retire or supersede a
-          published key version. Treat every call as permanent.
+          published key version. Treat every call as permanent. And if you do publish, publish a
+          <em>complete</em> registration: <code>public_key</code> alone is not enough. X expects
+          <code>signing_public_key</code>, <code>signing_public_key_signature</code>,
+          <code>identity_public_key_signature</code> and <code>registration_method</code> too — and
+          those can be completed later on an existing version by re-publishing the same
+          <code>public_key</code> with them included.
         </p>
       </div>
     </section>
@@ -271,7 +279,8 @@
       <p>
         The reverse trap. <code>GET /2/users/:id/public_keys</code> returned a
         <code>juicebox_config</code> on the key our backend published, even though our request sent
-        nothing but the public key and X confirmed that version has no Juicebox registration. The
+        nothing but the public key. X has since confirmed it: the config is generated on every
+        read, for every version, and says nothing about whether a registration exists. The
         field's presence is not evidence that a PIN can unlock that version. Decide which version
         to unlock from the key blobs you actually need to open, not from which entries carry a
         config.
@@ -657,9 +666,17 @@ field 6  created_at, epoch ms</code></pre>
       </p>
       <p>
         X later confirmed the mechanism. The app treats the highest version as current and tries
-        that version's Juicebox registration first when the owner enters their PIN. Our published
-        key was the highest and had no registration, so the app reported that it did not exist.
-        The owner's two app-created versions were untouched; the app just never reached them.
+        that version's registration first when the owner enters their PIN. Our published key was
+        the highest, and our request had sent only <code>public_key</code> — an incomplete
+        registration, with no signing key, no signatures and no registration method — so the app
+        reported that the registration did not exist. The owner's two app-created versions were
+        untouched; the app just never reached them.
+      </p>
+      <p>
+        The part that took longer to sink in: from that moment on, everyone who started or rotated
+        a conversation with the account sealed the new conversation key to <em>our</em> version.
+        Those conversations are readable only with the private key our backend holds. The owner's
+        app has been unable to read them since the day we published.
       </p>
 
       <h3>Four things made it worse than it had to be</h3>
@@ -769,14 +786,33 @@ field 6  created_at, epoch ms</code></pre>
         existing, highest version with the owner's PIN — <code>Chat(config).unlock(pin)</code> —
         rather than register a separate key.
       </p>
+
+      <h3>The answers that changed the picture</h3>
+      <p>
+        We sent the key versions and eight questions. X answered all of them, and the news was
+        much better than "treat it as a wipe" had suggested:
+      </p>
+      <ul>
+        <li><strong>Nothing is deleted by registering a new key.</strong> Messages and key-change events are only removed by message or conversation deletion, disappearing-message expiry, or account deletion. They simply stay unreadable to an identity the conversation key wasn't sealed to.</li>
+        <li><strong>Older Juicebox registrations stay valid.</strong> An older version's PIN can still recover that version later, on any device, and each version keeps its own guess limit.</li>
+        <li><strong>Other devices are left alone.</strong> A new version doesn't sign out other sessions or clear their keys; a device on an older version can still read the history sealed to it.</li>
+        <li><strong>Old history stays fetchable.</strong> The events endpoint returns a conversation's events whichever version you hold, and key-change events for older versions come back in <code>meta.conversation_key_events</code>.</li>
+        <li><strong>Changing the passcode keeps the version.</strong> Only Forgot PIN, Reset Chat and setup-without-recovery create a new one, and they leave the older versions in place.</li>
+        <li><strong>Unlocking an older version is supported</strong> — for reading. New conversation keys must always target the latest version, so older versions are read-only history.</li>
+        <li><strong>Keeping our key as a backend-owned identity is also supported</strong>, provided we complete its registration (section 2) and nobody uses X Chat on the account in the app.</li>
+      </ul>
+      <p>
+        So "Reset Chat wipes it" meant the app on that device loses access, not that the history
+        is gone. Every piece of it is still recoverable by whoever holds the matching key: the two
+        app-created versions by their own PINs, and everything since the incident by the private
+        key we kept. The choice left is which identity should own the account from now on — the
+        app, via a reset and a new PIN, or our backend, via a completed registration.
+      </p>
       <div class="note">
         <p>
-          <strong>This section is still open.</strong> We are sending X the key versions and
-          asking whether our version can be retired so the app falls back to its own, whether the older
-          Juicebox registrations survive a reset, and what happens to messages on X's servers and
-          on other signed-in devices. We will update this post with the outcome — including if the
-          answer is that the older history is unrecoverable, because that is the more useful result
-          to publish.
+          <strong>Where it stands.</strong> We have the answers and are choosing between those two
+          paths. We will update this post with which one we took and whether the recovery went as
+          described.
         </p>
       </div>
     </section>
@@ -792,7 +828,8 @@ field 6  created_at, epoch ms</code></pre>
         <li class="no"><span class="mark">✕</span><span><strong>Never publish an identity key onto an account a person uses in the X app.</strong> Not once, not "just to test". There is no undo.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never forget that the highest <code>public_key_version</code> is current.</strong> Anything you publish immediately becomes the version every new conversation is sealed to.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never retry a PIN in a loop, or across an account's several key configs.</strong> Each version has its own PIN and its own finite budget, and exhausting it is permanent.</span></li>
-        <li class="no"><span class="mark">✕</span><span><strong>Never treat a <code>juicebox_config</code> as proof of a PIN backup.</strong> X returned one on our published key, which has none.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never treat a <code>juicebox_config</code> as proof of a PIN backup.</strong> X generates one for every version on every read.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never publish a bare <code>public_key</code>.</strong> An incomplete registration on the current version keeps the official app stuck on its setup or PIN prompt.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never let a test environment hold real account tokens next to a one-way endpoint.</strong> Ours is where the publish came from.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never treat a failed or empty key lookup as "no PIN backup".</strong> That path's remedy rotates the identity and loses history — for what is usually an expired token.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never assume your DM webhook covers chat.</strong> Verify with a controlled send; silence looks identical to a broken receiver.</span></li>
@@ -835,16 +872,22 @@ field 6  created_at, epoch ms</code></pre>
 - Every /2/chat/* payload is ciphertext. The API has no plaintext mode.
 - An account may have SEVERAL published identity key versions. The CURRENT one is
   always the highest public_key_version (a ms timestamp); there is no other
-  "active" marker. New conversation keys are sealed to each participant's newest
-  version only. The X app unlocks the highest version first.
+  "active" marker. New conversation keys MUST be sealed to each participant's
+  highest version (else INVALID_IDENTITY_KEY_PAIR). The X app uses the highest
+  version. Older versions are read-only history.
 - Each app-created version has its OWN Juicebox registration, its OWN PIN and its
-  OWN guess budget. A PIN unlocks only its own version.
+  OWN guess budget. A PIN unlocks only its own version. Older registrations stay
+  valid after a newer version is created.
+- Changing the passcode keeps the same version. Forgot PIN, Reset Chat and
+  setup-without-recovery create a NEW version and leave the older ones in place.
+- Registering a new version never deletes messages or key-change events. Older
+  key-change events stay available in meta.conversation_key_events.
 - Conversation keys are static and wrapped to long-lived identity keys. There is
   no forward secrecy, and X never re-seals an old conversation key to a newer
   identity. Each identity opens exactly the history sealed to it — and losing
   one loses that history.
 - A juicebox_config on a public_keys entry does NOT prove that version has a
-  Juicebox registration. X returns one on server-published keys that have none.
+  Juicebox registration. X generates one for every version on every read.
 - Decryption requires CONVERSATION keys, not an identity. A Chat instance
   reporting is_unlocked=false decrypts correctly when conversation keys are
   passed explicitly.
@@ -869,8 +912,10 @@ field 6  created_at, epoch ms</code></pre>
   version's config, stop on the first invalid_pin, and surface the remaining
   count.
 - ONE identity owner per account: the official app, or a bot backend that never
-  opens X Chat in the app. Never both. If you publish for a bot, persist that
-  version's private key; refetching public keys cannot recover it.
+  opens X Chat in the app. Never both. If you publish for a bot, send a COMPLETE
+  registration (public_key, signing_public_key, signing_public_key_signature,
+  identity_public_key_signature, registration_method) and persist that version's
+  private key; refetching public keys cannot recover it.
 - Test environments must not hold real account tokens where they can reach a
   one-way endpoint.
 - NEVER treat an empty or failed public_keys response as "this account has no
@@ -923,23 +968,17 @@ plainly that it cannot be undone and name what breaks for the account owner.</co
       <h2>What we still don't know</h2>
       <ul>
         <li>
-          <strong>Whether the older history survives a reset.</strong> Partly answered. X says Reset
-          Chat loses it in the app, and we confirmed that old conversation keys are never re-sealed
-          to a new identity. Still open: whether the older versions' Juicebox registrations survive
-          a reset, so the old PIN could recover that history later on some device, or whether they
-          are removed with it.
+          <strong><s>Whether the older history survives a reset.</s></strong> Answered: yes. Nothing
+          is deleted, and older Juicebox registrations stay valid, so each older version's PIN can
+          still recover its own history later (section 7).
         </li>
         <li>
-          <strong>Whether a passcode change creates a new version.</strong> Our reading of the SDK
-          is that changing the PIN on a signed-in device keeps the same version and only re-wraps
-          the backup, while Forgot PIN, Reset Chat, or setting up without recovery creates a new
-          one. X has not confirmed it.
+          <strong><s>Whether a passcode change creates a new version.</s></strong> Answered: it
+          does not. Only Forgot PIN, Reset Chat and setup-without-recovery do.
         </li>
         <li>
-          <strong>Whether unlocking an older version is supported.</strong> A third-party client
-          can unlock an older app-created version with its own PIN and read the history sealed to
-          it. We have asked whether that is a supported path or whether only the current version is
-          meant to be recoverable.
+          <strong><s>Whether unlocking an older version is supported.</s></strong> Answered: yes,
+          for reading history. New conversation keys always target the latest version.
         </li>
         <li>
           <strong>Which call actually published.</strong> Answered: the published identity row
