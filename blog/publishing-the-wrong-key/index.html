@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Publishing the Wrong Key</title>
-<meta name="description" content="A field guide to integrating X's end-to-end encrypted Chat API, and a postmortem on publishing an identity key that could never be retired.">
+<meta name="description" content="A field guide to integrating X's end-to-end encrypted Chat API, and a postmortem on publishing an identity key onto an account someone was using — what it broke, what X told us, and how it gets fixed.">
 <meta property="og:title" content="Publishing the Wrong Key">
-<meta property="og:description" content="A field guide to integrating X's end-to-end encrypted Chat API, and a postmortem on publishing an identity key that could never be retired.">
+<meta property="og:description" content="A field guide to integrating X's end-to-end encrypted Chat API, and a postmortem on publishing an identity key onto an account someone was using — what it broke, what X told us, and how it gets fixed.">
 <meta property="og:type" content="article">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,27 +27,26 @@
     <p class="eyebrow">Field notes · X Chat API</p>
     <h1>Publishing the Wrong Key</h1>
     <p class="standfirst">
-      We integrated X's end-to-end encrypted chat API, and along the way we published a server
-      identity key onto an account a person was actively using in the X app. It broke their chat,
-      changed the safety number every one of their contacts sees, and <strong>there is no endpoint
-      to undo it</strong>. Here is how the API actually works, what the docs don't tell you, and
-      the one rule that would have saved us.
+      We integrated X's end-to-end encrypted chat API, and along the way our backend published its
+      own identity key onto an account a person was actively using in the X app. It broke their
+      chat, changed the safety number every one of their contacts sees, and <strong>there is no
+      endpoint to undo it</strong>. This is how the API actually works, what the docs don't tell
+      you, everything X's staff told us while we dug out — and the one rule that would have saved
+      us.
     </p>
     <div class="byline">
-      <span>Written after ~5 weeks of integration</span>
+      <span>Written after ~6 weeks of integration</span>
       <span>·</span>
-      <span>All findings measured against live traffic</span>
+      <span>Measured against live traffic</span>
       <span>·</span>
-      <span>Account details withheld</span>
-      <span>·</span>
-      <span>Updated 25 Sep 2026 with X's later replies</span>
+      <span>Updated 26 Sep 2026</span>
     </div>
 
     <aside class="llm-shortcut">
       <a href="#llm">
         <span class="llm-shortcut__eyebrow">🤖 In a hurry?</span>
         <span class="llm-shortcut__title">Just want the LLM context?</span>
-        <span class="llm-shortcut__body">No shame in it — skip the 18-minute confession and grab the paste-ready rules for your AI.</span>
+        <span class="llm-shortcut__body">No shame in it — skip the confession and grab the paste-ready rules for your AI.</span>
         <span class="llm-shortcut__cta">Skip to the good part <span aria-hidden="true">→</span></span>
       </a>
     </aside>
@@ -61,67 +60,98 @@
       <p>
         If you run anything that reads a user's X DMs through <code>GET /2/dm_events</code>, you may
         have noticed conversations quietly disappearing from your inbox. They aren't deleted. They
-        moved. X Chat conversations are end-to-end encrypted, and the legacy DM events endpoint does
-        not return them.
+        moved. X Chat conversations are end-to-end encrypted, and they do not appear in the legacy
+        DM lookup endpoints or DM webhooks.
       </p>
       <p>
-        The fix is not a parameter. It is a separate API — <code>/2/chat/*</code> — with its own
-        auth model, its own subscription system, its own rate limits, its own SDK, and a
-        cryptographic model you have to understand before you write a line of code. It is additive:
-        plaintext DMs still only come from <code>/2/dm_events</code>, so you will end up running both.
+        There is no switch to turn this off. X's staff have been explicit: you cannot disable X Chat
+        for an account or a conversation and fall back to legacy DMs. The only way to see those
+        conversations is a separate API — <code>/2/chat/*</code> — with its own auth rules, its own
+        subscription system, its own rate limits, its own SDK, and a cryptographic model you have to
+        understand before you write a line of code. It is additive: plaintext DMs still only come
+        from <code>/2/dm_events</code>, so you will end up running both.
       </p>
       <p>
-        This post is the guide we wanted five weeks ago. It is written in the order the decisions
-        actually arrive, and it is honest about the one we got wrong.
+        This post is the guide we wanted six weeks ago. It is written in the order the decisions
+        actually arrive, it is honest about the one we got wrong, and it records what X told us on
+        their developer forum while we recovered, because most of it is written down nowhere else.
       </p>
     </section>
 
     <section id="model">
       <span class="section-mark">01 · The mental model</span>
-      <h2>Two kinds of key, and only one of them matters to you</h2>
+      <h2>Two kinds of key, and the rules that bind them</h2>
       <p>
         Almost every mistake in this space comes from collapsing two different things into the word
         "key". Keep them apart:
       </p>
       <p>
-        An <strong>identity key</strong> belongs to a person (or a bot). It is long-lived, it is
-        published to X so others can find it, and it is what a conversation key gets wrapped
-        <em>to</em>. A <strong>conversation key</strong> belongs to a thread. It is what actually
-        decrypts message ciphertext, and it is sealed to each participant's <em>newest</em>
-        published identity at the moment the key is made.
+        An <strong>identity key</strong> belongs to an account. It is long-lived, it is published to
+        X under a <code>public_key_version</code> (a millisecond timestamp), and it is what
+        conversation keys get sealed <em>to</em>. A <strong>conversation key</strong> belongs to a
+        thread. It is what actually decrypts message ciphertext.
       </p>
       <p>
-        Two consequences fall straight out of that, and the whole architecture rests on them:
+        An account can have several published identity versions at once. These rules, all confirmed
+        by X's staff, decide what happens between them:
       </p>
       <ul>
         <li>
-          <strong>There is no forward secrecy.</strong> Conversation keys are static and wrapped to
-          long-lived identity keys. That is precisely why a PIN unlock can recover years of history
-          — and why losing an identity key loses the history with it. X also never re-seals an old
-          conversation key to a newer identity: we fetched a thread's full key history and found
-          keys from before an identity change still sealed only to the older identity. Each
-          identity opens exactly the history that was sealed to it.
+          <strong>The highest version is the current one.</strong> There is no separate "active"
+          marker. The official app uses the highest version, and the API enforces it: a conversation
+          key must be sealed to each participant's highest version, or
+          <code>POST /2/chat/conversations/:id/keys</code> returns
+          <code>INVALID_IDENTITY_KEY_PAIR</code>.
+        </li>
+        <li>
+          <strong>Older versions are read-only history.</strong> They still verify old signatures and
+          still open the conversation keys that were sealed to them. They never receive new ones.
+        </li>
+        <li>
+          <strong>X never re-seals an old conversation key to a newer identity.</strong> We fetched a
+          thread's full key history and found keys from before an identity change still sealed only
+          to the older identity. Each identity opens exactly the history that was sealed to it.
+        </li>
+        <li>
+          <strong>Each app-created version has its own PIN.</strong> Its own Juicebox registration,
+          its own PIN, its own guess limit. Changing the passcode on a signed-in device keeps the
+          version. Forgot PIN, Reset Chat and setting up without recovery each create a <em>new</em>
+          version and leave the older ones — and their PIN backups — in place.
+        </li>
+        <li>
+          <strong>A new version never deletes anything.</strong> Messages and key-change events are
+          only removed by message or conversation deletion, disappearing-message expiry, or account
+          deletion. After an identity change they are still on X's servers, just unreadable to any
+          identity their conversation key wasn't sealed to.
+        </li>
+      </ul>
+      <p>Two consequences fall straight out of that:</p>
+      <ul>
+        <li>
+          <strong>There is no forward secrecy.</strong> Conversation keys are static and sealed to
+          long-lived identity keys. That is why a PIN unlock can recover years of history — and why
+          losing an identity loses the history sealed to it.
         </li>
         <li>
           <strong>Decryption needs the conversation key, not the identity.</strong> Once you hold a
-          conversation key, you never need the identity again. We verified this against live data:
-          a <code>Chat</code> instance reporting <code>is_unlocked=False</code> decrypted real
-          messages when the conversation keys were supplied explicitly.
+          conversation key, you never need the identity again. We verified this against live data: a
+          <code>Chat</code> instance reporting <code>is_unlocked=False</code> decrypted real messages
+          when the conversation keys were supplied explicitly.
         </li>
       </ul>
       <p>
-        That second point is the single most useful fact in this post. Hold onto it — it is what
-        makes the mistake in section 6 unnecessary as well as harmful.
+        That last point is the most useful fact in this post. Hold onto it — it is what makes the
+        mistake in section 6 unnecessary as well as harmful.
       </p>
     </section>
 
     <section id="fork">
       <span class="section-mark">02 · The fork in the road</span>
-      <h2>Two identity paths, and you must pick exactly one per account</h2>
+      <h2>One identity owner per account</h2>
       <p>
-        X supports two ways for code to have an identity on an account, and the docs present them as
-        two sections of a getting-started guide rather than as a fork with a wrong branch. They are
-        a fork with a wrong branch.
+        X supports two ways for an account to have an identity, and the docs present them as two
+        sections of a getting-started guide rather than as a fork with a wrong branch. They are a
+        fork with a wrong branch.
       </p>
 
       <figure>
@@ -149,7 +179,7 @@
             <text x="112" y="156" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="currentColor">identity key</text>
 
             <text x="12" y="212" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor">Recoverable by PIN.</text>
-            <text x="12" y="229" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor">Unlocks full history.</text>
+            <text x="12" y="229" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor">Your backend unlocks it.</text>
 
             <text x="392" y="18" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="currentColor" letter-spacing="1">PATH B — BOT / SERVER</text>
             <rect x="392" y="32" width="200" height="52" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
@@ -192,43 +222,48 @@
         </div>
         <figcaption>
           The two identity paths are fine in isolation. The dashed edge is the one that cost us:
-          publishing a server key onto an account whose owner uses X Chat in the app promotes your
-          key to the account's current identity, and X exposes no API to reverse it.
+          publishing a server key onto an account whose owner uses X Chat in the app makes your key
+          the account's current identity, and X exposes no API to reverse it.
         </figcaption>
       </figure>
 
+      <p>X's staff described the two supported patterns in almost these words:</p>
+      <ul>
+        <li>
+          <strong>The official app owns the account.</strong> The app creates the Juicebox-backed
+          version. Your backend unlocks that existing version with the owner's PIN —
+          <code>Chat(config).unlock(pin)</code>, with the <code>juicebox_config</code> for the highest
+          version from <code>GET /2/users/:id/public_keys</code> — instead of publishing a competing
+          key.
+        </li>
+        <li>
+          <strong>Your backend owns the account.</strong> Your server generates and keeps the private
+          key and publishes it with <code>POST /2/users/:id/public_keys</code> — and that account
+          never opens X Chat in the official app. This is for dedicated bot accounts.
+        </li>
+      </ul>
       <p>
-        X's own staff put it plainly when we asked: the server path "isn't meant to sit alongside
-        the consumer app's PIN/Juicebox keys on the same account." Their later, more precise answer
-        is the one to build on: <strong>the current identity is always the published version with
-        the highest <code>public_key_version</code></strong> (a millisecond timestamp). There is no
-        separate "active" marker. New conversation keys must be sealed to each participant's
-        newest version, and older versions only verify old signatures. The API enforces it:
-        <code>POST /2/chat/conversations/:id/keys</code> returns
-        <code>INVALID_IDENTITY_KEY_PAIR</code> for a key sealed to anything older. So the moment you
-        publish, your key is the one every new conversation is sealed to — and the official app
-        will keep using it, prompting for setup or a PIN for as long as its registration is
-        incomplete.
-      </p>
-      <p>
-        X gave the same answer to another developer who was publishing a fresh key on every user
-        sign-in and hit the same failure: <strong>one identity owner per account</strong>. Either
-        your backend owns the key, for a bot account nobody opens X Chat on in the app, or the app
-        owns it and your backend unlocks that existing version. And if you do publish, persist the
-        private key for that version — refetching public keys never gives it back.
+        There is no third option. X was explicit that there is no supported way to copy the official
+        app's private key out to your backend, or to safely share one account between both. And
+        publishing is not a one-off risk: another developer on the forum was generating and
+        publishing a fresh key every time a user signed in, and their customers' decryption broke the
+        same way ours did. Every publish creates a new, higher version, and every new conversation
+        key goes to it.
       </p>
 
       <div class="oneway">
         <span class="tag">One-way door</span>
         <p>
-          <code>POST /2/users/:id/public_keys</code> is rate-limited to 5 per 24 hours, and that
-          limit is the least of it. There is no documented public API to retire or supersede a
-          published key version. Treat every call as permanent. And if you do publish, publish a
-          <em>complete</em> registration: <code>public_key</code> alone is not enough. X expects
-          <code>signing_public_key</code>, <code>signing_public_key_signature</code>,
-          <code>identity_public_key_signature</code> and <code>registration_method</code> too — and
-          those can be completed later on an existing version by re-publishing the same
-          <code>public_key</code> with them included.
+          <code>POST /2/users/:id/public_keys</code> is rate-limited to 5 per 24 hours, and that limit
+          is the least of it. There is no public API to retire or supersede a published version.
+          Treat every call as permanent.
+        </p>
+        <p>
+          If you do own a bot account, publish a <em>complete</em> registration —
+          <code>public_key</code>, <code>signing_public_key</code>,
+          <code>identity_public_key_signature</code>, <code>signing_public_key_signature</code> and
+          <code>registration_method</code> — and store the private key for that version. Refetching
+          public keys never gives it back.
         </p>
       </div>
     </section>
@@ -264,35 +299,55 @@
         <code>{min}-{max}</code> of the two user ids.
       </p>
 
-      <div class="oneway">
-        <span class="tag">Data-loss trap</span>
-        <p>
-          On <code>GET /2/users/:id/public_keys</code>, always send an explicit
-          <code>public_key.fields</code>. The docs do not promise what an omitted value returns, and
-          an empty response reads to your code as "this account has no PIN-backed identity". The
-          natural UI remedy for that — <em>"set X Chat up again"</em> — rotates the identity and
-          destroys the user's history. A missing query parameter should not be able to cause that.
-        </p>
-      </div>
-
-      <h3>A <code>juicebox_config</code> does not prove a PIN backup exists</h3>
+      <h3>What the key lookup can and cannot tell you</h3>
       <p>
-        The reverse trap. <code>GET /2/users/:id/public_keys</code> returned a
-        <code>juicebox_config</code> on the key our backend published, even though our request sent
-        nothing but the public key. X has since confirmed it: the config is generated on every
-        read, for every version, and says nothing about whether a registration exists. The
-        field's presence is not evidence that a PIN can unlock that version. Decide which version
-        to unlock from the key blobs you actually need to open, not from which entries carry a
-        config.
+        <code>GET /2/users/:id/public_keys</code> returns exactly five fields per version:
+        <code>public_key</code>, <code>signing_public_key</code>,
+        <code>identity_public_key_signature</code>, <code>public_key_version</code> and
+        <code>juicebox_config</code>. <code>public_key.fields</code> accepts only those five, asking
+        for anything else is a 400, and omitting the parameter returns the same five. Three things
+        follow:
       </p>
+      <ul>
+        <li>
+          <strong>A <code>juicebox_config</code> proves nothing.</strong> X generates one on every
+          read, for every version, whether or not a PIN backup exists for it. Our backend-published
+          key had one, and it had no registration at all.
+        </li>
+        <li>
+          <strong>You cannot verify a registration is complete.</strong>
+          <code>signing_public_key_signature</code> and <code>registration_method</code> are not
+          readable. From the API, our incomplete version looked identical to the two complete
+          app-created ones.
+        </li>
+        <li>
+          <strong>A failed or empty lookup is a lookup failure.</strong> Never read it as "this
+          account has no PIN backup". The natural UI remedy for that state — <em>"set X Chat up
+          again"</em> — creates a new version and strands the user's history behind their old PIN.
+          Usually the real cause is an expired token.
+        </li>
+      </ul>
 
       <h3>The key-event list is page-scoped</h3>
       <p>
         <code>GET /2/chat/conversations/:id/events</code> returns message events in
         <code>data</code> and, separately, <code>meta.conversation_key_events</code>. That key list
         covers <em>the page</em>, not the conversation's full key history. Measured:
-        <code>max_results=1</code> returned 2 key events where a full walk returned 5. Fine for a
-        single call; a history backfill must page and union them.
+        <code>max_results=1</code> returned 2 key events where a full walk returned 5. A history
+        backfill must page and union them. Key events for older identity versions come back too,
+        whichever version you hold.
+      </p>
+
+      <h3>Starting a conversation can fail for reasons you cannot fix</h3>
+      <p>
+        Other developers have hit this with Chat Agents: tapping Message created a keyless legacy
+        <code>type=direct</code> conversation, the UI then showed it as read-only and unencrypted,
+        and <code>POST /2/chat/conversations/:id/keys</code> returned
+        <code>UNAUTHORIZED_REQUESTING_USER</code> in both directions. X's staff said it was not
+        fixable from the client. One developer worked around it by creating a group conversation
+        instead, built with the SDK's <code>prepare_group_create</code> rather than
+        <code>prepare_conversation_key_change</code>. If key initialization fails in both directions
+        with a well-formed payload, stop debugging your own code and report it with request ids.
       </p>
 
       <h3>Rate limits</h3>
@@ -330,8 +385,8 @@
 delivered by webhook d07bb3d2-a407-428e-...   (uuid)
 overlap              none</code></pre>
       <p>
-        Both ids are actually present on every event, inside the envelope. Which brings us to a
-        detail worth knowing for its own sake.
+        Both ids are present on every event, inside the envelope — which is worth knowing for its own
+        sake.
       </p>
 
       <h3>The envelope is not encrypted</h3>
@@ -346,10 +401,11 @@ field 4  conversation id
 field 5  conversation token
 field 6  created_at, epoch ms</code></pre>
       <p>
-        The message body is encrypted; who sent it, in which conversation, and when, are not. That
-        is worth understanding before you describe the system to users as end-to-end encrypted
-        without qualification. It is also useful: canonicalising on field 1 is what fixed our
-        duplicate-id problem.
+        The message body is encrypted; who sent it, in which conversation, and when, are not. That is
+        worth understanding before you describe the system to users as end-to-end encrypted without
+        qualification. It is also useful: canonicalising on field 1 is what fixed our duplicate-id
+        problem, and the same plaintext header of a key-change event tells you which identity version
+        each participant's copy is sealed to.
       </p>
     </section>
 
@@ -357,14 +413,10 @@ field 6  created_at, epoch ms</code></pre>
       <span class="section-mark">04 · Decryption</span>
       <h2>Where decryption happens, and why it isn't your server</h2>
       <p>
-        This is the part the docs leave you to work out, and getting the shape right is what makes
-        the whole thing both possible and defensible.
-      </p>
-      <p>
         The naive design is: hold the user's identity on the server, unlock everything server-side,
         decrypt at will. It is also the design that pushes you toward publishing a key you shouldn't.
-        The correct shape moves the identity to the browser and keeps only conversation keys on the
-        server.
+        The shape that works for app-owned accounts keeps the PIN and the identity in the browser and
+        only conversation keys on the server.
       </p>
 
       <figure>
@@ -428,23 +480,31 @@ field 6  created_at, epoch ms</code></pre>
         </div>
         <figcaption>
           The browser is the only place the PIN and identity exist. It hands back conversation keys,
-          which the backend seals under its own key and reuses forever. No published key of yours is
-          involved at any step.
+          which the backend seals under its own key and reuses. No published key of yours is involved
+          at any step, and the owner never has to hand their PIN to your server.
         </figcaption>
       </figure>
 
       <h3>The SDK detail that makes this work</h3>
       <p>
-        The Chat SDK offers a batch <code>decryptEvents(events, signing_keys)</code> and a singular
+        X's Chat XDK offers a batch <code>decryptEvents(events, signing_keys)</code> and a singular
         <code>decryptEvent(blob, conversation_keys, signing_keys)</code>. The batch call is the
-        recommended API and it is the wrong one for this design: it has no slot for keys, so it
-        derives them from KeyChange events inside the same list — which requires an
-        <em>unlocked</em> identity.
+        recommended one for an unlocked client: it pulls conversation keys out of the key-change
+        events in the same list, verifies their signatures, and never lets the "latest key" move
+        backwards. But it needs an unlocked identity to do that.
       </p>
       <p>
-        The singular form takes conversation keys explicitly. That is the entire basis for
-        unattended server-side decryption without ever holding a user's identity. Loop the singular
-        call; ignore the ergonomics advice.
+        The singular form takes conversation keys explicitly, and that is the entire basis for
+        unattended server-side decryption without the identity. One caveat worth knowing: the
+        separate <code>extractConversationKeys</code> call adopts keys <em>without</em> checking the
+        key-change signature — the SDK's own notes say so. If you extract in the browser, verify the
+        key-change events before you store what they yield.
+      </p>
+      <p>
+        The most common "everything decrypts to nothing" report on the forum has the same cause every
+        time: the caller passed only <code>data</code> to <code>decryptEvents</code>. The key-change
+        events live in <code>meta.conversation_key_events</code>; concatenate both, set the identity
+        and version, and supply signing keys for every participant.
       </p>
 
       <h3>Traps in the browser half</h3>
@@ -452,51 +512,45 @@ field 6  created_at, epoch ms</code></pre>
         <li>
           <strong><code>juicebox_config</code> arrives as an object; <code>createChat</code> wants a
           string.</strong> It calls <code>JSON.parse</code> internally, so passing the parsed object
-          coerces to <code>"[object Object]"</code> and throws a <code>SyntaxError</code>. Every
-          unlock fails with no network request at all, which is a miserable thing to debug.
+          coerces to <code>"[object Object]"</code> and throws a <code>SyntaxError</code>. Every unlock
+          fails with no network request at all, which is a miserable thing to debug.
         </li>
         <li>
-          <strong>There is no realm-token endpoint.</strong> We looked for one for days. The tokens
-          are already inside <code>juicebox_config.token_map</code> — an <em>array</em> of
-          <code>{key: realmId, value: {address, token}}</code>, not an object keyed by realm.
-          <code>getAuthToken</code> is just that lookup. The JWTs are scoped to
-          <code>{x_id}:{key_version}</code> and expire after <strong>one hour</strong>, so fetch
-          them at submit time, never at mount.
+          <strong>There is no realm-token endpoint.</strong> The tokens are already inside
+          <code>juicebox_config.token_map</code> — an <em>array</em> of
+          <code>{key: realmId, value: {address, token}}</code>, not an object keyed by realm. The JWTs
+          are scoped to <code>{x_id}:{key_version}</code> and expire after <strong>one hour</strong>,
+          so fetch them at submit time, never at mount.
         </li>
         <li>
-          <strong>Extract one blob at a time.</strong> <code>extractConversationKeys</code> returns
-          a flat <code>{version: key}</code> map with no conversation attached. Batch the call and
-          pair results with your pending list afterwards, and you get a cartesian product —
-          conversation A's key filed against conversation B, under a version its ciphertext will
-          never match. Blobs are few. Loop them.
+          <strong>Extract one blob at a time.</strong> <code>extractConversationKeys</code> returns a
+          flat <code>{version: key}</code> map with no conversation attached. Batch the call and pair
+          results with your pending list afterwards, and you get a cartesian product — conversation
+          A's key filed against conversation B.
         </li>
         <li>
           <strong>Signing keys must cover both participants.</strong> Supply only the inbox owner's
           and the other party's messages fail verification and get silently dropped.
         </li>
         <li>
-          <strong>Pick the key version from the blob, never by walking the list.</strong> An account
-          can have several Juicebox-backed versions — every time the owner sets X Chat up again
-          without recovering, the app creates a new one with its own PIN. A PIN unlocks only its own
-          version, and a conversation key opens only with the version it was sealed to. That
-          version is readable in the key blob's plaintext Thrift header, so read it and send the PIN
-          to that one config. We first shipped "try the configs oldest first", and it produced both
-          symptoms on a real account: the current PIN was rejected by the old version as "wrong
-          PIN", and the old PIN unlocked the old version, which could open none of the recent
-          blobs.
+          <strong>Pick the version from the blob, never by walking the list.</strong> A PIN unlocks
+          only its own version, and a conversation key opens only with the version it was sealed to.
+          Read that version from the key-change event's plaintext header and send the PIN to that one
+          config. We first shipped "try the configs oldest first", and on a real account it produced
+          both symptoms at once: the current PIN was rejected by the old version as "wrong PIN", and
+          the old PIN unlocked the old version, which could open none of the recent blobs.
         </li>
       </ul>
 
       <div class="oneway">
         <span class="tag">Destroys the identity</span>
         <p>
-          The PIN guess budget is finite, and exhausting it destroys the key material permanently.
-          Read the remaining count from the SDK and show it. The budget belongs to <em>one</em>
-          version's registration: the realm tokens are scoped to <code>{x_id}:{key_version}</code>,
-          and every attempt counts against that version alone. So stop on the first
-          <code>invalid_pin</code>, and never retry the same PIN across an account's other
-          published configs — it cannot succeed on a version it doesn't belong to, and each try
-          spends a guess there.
+          The PIN guess budget is finite, and exhausting it destroys that version's key material
+          permanently. The budget belongs to <em>one</em> version's registration, and every attempt
+          counts against that version alone. Read the remaining count the SDK reports
+          (<code>guesses_remaining</code>) and show it. Stop on the first invalid PIN, and never retry
+          the same PIN across an account's other versions — it cannot succeed on a version it doesn't
+          belong to, and each try spends a guess there.
         </p>
       </div>
 
@@ -504,9 +558,9 @@ field 6  created_at, epoch ms</code></pre>
       <p>
         The pip distribution is <code>chatxdk</code> but the module it provides is
         <code>chat_xdk</code>, and it ships a native extension. "Installed" and "importable" are
-        genuinely different states — <code>pip show</code> succeeding proves nothing. Worse, a
-        long-running process caches its view of site-packages, so a package installed while your
-        server is running stays invisible until you invalidate the import cache or restart.
+        genuinely different states — <code>pip show</code> succeeding proves nothing. A long-running
+        process also caches its view of site-packages, so a package installed while your server is
+        running stays invisible until you invalidate the import cache or restart.
       </p>
     </section>
 
@@ -575,23 +629,22 @@ field 6  created_at, epoch ms</code></pre>
         </div>
         <figcaption>
           Same webhook, same account, same five-minute window. The plain DM proves the receiver and
-          the AAA subscription are healthy; the encrypted message proves chat events do not ride
-          that system.
+          the AAA subscription are healthy; the encrypted message proves chat events do not ride that
+          system.
         </figcaption>
       </figure>
 
       <p>
         Chat events are delivered through <code>POST /2/activity/subscriptions</code> — per user
         <em>and</em> per event type, with a <code>webhook_id</code> and a
-        <code>filter: {user_id}</code>. You can reuse your existing registered webhook; you do not
-        need a second one.
+        <code>filter: {user_id}</code>. You can reuse your existing registered webhook.
       </p>
 
       <h3>The credential is different per operation</h3>
       <p>
-        This is undocumented and it is what made the endpoint look like a missing entitlement for
-        weeks. Our first attempt used the user token for the list call, got a 401, and concluded the
-        app wasn't approved. The app was fine. The credential was wrong.
+        This is undocumented, and it made the endpoint look like a missing entitlement for weeks. Our
+        first attempt used the user token for the list call, got a 401, and concluded the app wasn't
+        approved. The app was fine. The credential was wrong.
       </p>
       <div class="tablewrap">
         <table>
@@ -601,7 +654,7 @@ field 6  created_at, epoch ms</code></pre>
           <tbody>
             <tr><td><code>GET /2/activity/subscriptions</code></td><td>App bearer</td><td>User token returns 401</td></tr>
             <tr><td><code>POST /2/activity/subscriptions</code></td><td>User token</td><td>Scope comes from the user's grant</td></tr>
-            <tr><td><code>DELETE .../{id}</code></td><td>App bearer</td><td>Fall back to user token; undocumented</td></tr>
+            <tr><td><code>DELETE .../{id}</code></td><td>App bearer</td><td>We fall back to the user token</td></tr>
           </tbody>
         </table>
       </div>
@@ -615,21 +668,21 @@ field 6  created_at, epoch ms</code></pre>
       <p>
         Account Activity on pay-per-use allows <strong>3 unique subscriptions</strong>. Not 3,000 —
         three. We had ten subscription rows failing with a generic 4xx for weeks before someone
-        checked the count endpoint and found the cap was simply full. If your error handling
-        collapses every 4xx into one code, you will never see this.
+        checked the count endpoint and found the cap was simply full. If your error handling collapses
+        every 4xx into one code, you will never see this.
       </p>
       <p>
         The Activity API allows <strong>1,500</strong> on self-serve. If you subscribe four event
-        types per account, that is a ceiling of 375 accounts, and you should know that number before
-        you design around it. <code>chat.received</code> and <code>dm.received</code> bill at
-        $0.010 per delivered event; <code>chat.sent</code> and <code>dm.sent</code> are free.
+        types per account, that is a ceiling of 375 accounts. <code>chat.received</code> and
+        <code>dm.received</code> bill at $0.010 per delivered event; <code>chat.sent</code> and
+        <code>dm.sent</code> are free.
       </p>
       <div class="note">
         <p>
-          Because delivery bills per event, your teardown path is a financial control, not a
-          cleanup nicety. If a user disconnects and your code fails to delete the subscription, X
-          keeps delivering and you keep paying. Never mark an account unsubscribed based on a
-          subscription listing you failed to read.
+          Because delivery bills per event, your teardown path is a financial control, not a cleanup
+          nicety. If a user disconnects and your code fails to delete the subscription, X keeps
+          delivering and you keep paying. Never mark an account unsubscribed based on a subscription
+          listing you failed to read.
         </p>
       </div>
     </section>
@@ -650,33 +703,29 @@ field 6  created_at, epoch ms</code></pre>
         </p>
       </div>
       <p>
-        The reasoning felt sound. Several product features needed plaintext server-side. Path (b)
-        appeared to make that impossible. So we took path (a) — the bot/server path — on accounts
-        belonging to real people who use X Chat in the app.
+        The reasoning felt sound. Several product features needed plaintext server-side, and path
+        (b) appeared to make that impossible. So we took the bot/server path on accounts belonging to
+        people who use X Chat in the app. Then, during testing, a publish went through on one of
+        them.
       </p>
       <p>
-        Then, during testing, a publish went through on one of those accounts.
+        The symptoms arrived immediately. The owner's PIN stopped working in the X app, which reported
+        <em>"Registration does not exist"</em>. Every one of their contacts saw a security-code change
+        notification. The account's two app-created versions were still listed and intact — the app
+        just never reached them.
       </p>
       <p>
-        The symptoms arrived immediately and were not subtle. The owner's PIN stopped working in the
-        X app, which reported <em>"Registration does not exist"</em>. Every one of their contacts
-        saw a security-code change notification. All three key versions were still returned by
-        <code>GET /2/users/:id/public_keys</code>, and the underlying key material was intact — but
-        the app would not use it.
+        X later explained the mechanism exactly. The app treats the highest version as current and
+        unlocks that one. Ours was now the highest, and it had no Juicebox registration, so there was
+        nothing for the owner's PIN to open. X also told us the registration itself was incomplete: the
+        official app expects the signing-key signature and registration method on the current version,
+        and without them it keeps showing its setup or PIN prompt.
       </p>
       <p>
-        X later confirmed the mechanism. The app treats the highest version as current and tries
-        that version's registration first when the owner enters their PIN. Our published key was
-        the highest, and our request had sent only <code>public_key</code> — an incomplete
-        registration, with no signing key, no signatures and no registration method — so the app
-        reported that the registration did not exist. The owner's two app-created versions were
-        untouched; the app just never reached them.
-      </p>
-      <p>
-        The part that took longer to sink in: from that moment on, everyone who started or rotated
-        a conversation with the account sealed the new conversation key to <em>our</em> version.
-        Those conversations are readable only with the private key our backend holds. The owner's
-        app has been unable to read them since the day we published.
+        The consequence that took longest to sink in: from that moment, everyone who started or
+        rotated a conversation with the account sealed the new conversation key to <em>our</em>
+        version. Those conversations were readable only with the private key our backend held. The
+        owner's app could not read them at all.
       </p>
 
       <h3>Four things made it worse than it had to be</h3>
@@ -692,32 +741,32 @@ field 6  created_at, epoch ms</code></pre>
           accounts nobody uses in the app.
         </li>
         <li>
-          <strong>The publish came from our test environment.</strong> When we finally traced it,
-          the only identity row marked as published sat in the test environment's database, stamped
-          the same second as the key version on X. A test deployment holding real account tokens
-          made an irreversible change to a real account. Anything that can call a one-way endpoint
-          is production, whatever its hostname says.
+          <strong>The publish came from our test environment.</strong> When we traced it, the only
+          identity row marked as published sat in the test environment's database, stamped the same
+          second as the key version on X. A test deployment holding real account tokens made an
+          irreversible change to a real account. Anything that can call a one-way endpoint is
+          production, whatever its hostname says.
         </li>
         <li>
           <strong>A safety default lied to us.</strong> The publish flag defaulted to off, and a
           backfill script documented as "actually publish" called the register function without it —
           so it minted local identities while logging success as though it had registered. When the
-          thing that is supposed to publish doesn't, and something else does, you lose the ability
-          to reason about what happened.
+          thing that is supposed to publish doesn't, and something else does, you lose the ability to
+          reason about what happened.
         </li>
       </ul>
 
       <h3>And the part that still stings</h3>
       <p>
-        When we eventually built the design properly — browser unlock, conversation keys sealed
-        server-side, unattended decryption afterwards — we deleted the publishing code entirely.
-        Not because it was risky. Because <strong>nothing needed it</strong>.
+        When we built the design properly — browser unlock, conversation keys sealed server-side,
+        unattended decryption afterwards — we deleted the publishing code entirely. Not because it was
+        risky. Because <strong>nothing needed it</strong>.
       </p>
       <p>
-        Receiving events needs a subscription. Decrypting needs conversation keys. Neither requires
-        a key of yours to be published on the account. Path (a) and path (b) were never really a
-        trade-off between capability and safety — we just hadn't understood the SDK well enough to
-        see that the safe path did everything.
+        Receiving events needs a subscription. Decrypting needs conversation keys. Neither requires a
+        key of yours to be published on the account. Path (a) and path (b) were never a trade-off
+        between capability and safety — we just hadn't understood the SDK well enough to see that the
+        safe path did everything.
       </p>
       <div class="oneway">
         <span class="tag">The lesson, in one line</span>
@@ -730,114 +779,120 @@ field 6  created_at, epoch ms</code></pre>
 
     <section id="recovery">
       <span class="section-mark">07 · Recovery</span>
-      <h2>Where the account stands now</h2>
+      <h2>How it gets fixed, and what survives</h2>
       <p>
-        We reported this on X's developer forum and their staff engaged quickly and helpfully. The
-        first answers, in the week of the incident:
-      </p>
-      <ul>
-        <li>There is <strong>no documented public API</strong> to retire a published key version or force the app back onto an earlier registration.</li>
-        <li>Re-registering from the app is the usual recovery path, but <strong>prior encrypted conversations are not guaranteed to remain readable</strong> afterwards.</li>
-        <li>We were advised not to wipe or overwrite key material from our side until they confirm the recovery steps.</li>
-        <li>We were advised to stop entering the PIN in the app while it shows the error, since that can consume the guess budget without fixing anything.</li>
-      </ul>
-      <p>
-        So the account was frozen. Worth saying explicitly: "frozen" took real work. Background
-        workers that harvest, decrypt, retry, and demote key state are all mutations of key
-        material, and doing nothing manually is not the same as nothing happening. If you find
-        yourself here, stop your workers, not just your hands.
+        We reported it on X's developer forum. Their staff engaged quickly and stayed with it for four
+        weeks. The recovery went through four stages.
       </p>
 
-      <h3>Three weeks later: the suggested fix, and why we paused it</h3>
+      <h3>1 · Freeze</h3>
       <p>
-        X came back with the cause (section 6) and a fix that needed nothing from their side: at
-        the app's PIN prompt, choose <em>Forgot PIN</em> and set a new one. The app would publish a
-        newer version with a real Juicebox registration, that version would become the highest, and
-        X Chat would work again — with one more security-code change for every contact. History
-        encrypted to the app-created versions "should remain readable if the app already recovered
-        those keys during earlier PIN attempts, but this isn't guaranteed."
-      </p>
-      <p>
-        It did not play out that way. <em>Forgot PIN</em> did not offer a new PIN. It opened a
-        "Forgot Passcode" screen warning that without a passcode or a linked device X cannot
-        retrieve the encrypted messages, with exactly two buttons: <strong>Reset Chat</strong> and
-        Go Back. We stopped and asked before pressing anything.
-      </p>
-      <p>
-        The answer: Reset Chat starts a fresh Chat identity on that device, and should be treated
-        as wiping access to the existing encrypted conversations in the app — <strong>including the
-        ones only the older app-created versions could open</strong>. It is not a surgical removal
-        of our key. X offered to look for a safer path first if we sent the current key versions.
+        X's first instructions: there is no public API to retire a published version; don't wipe or
+        overwrite key material; stop entering the PIN in the app, because each attempt can spend a
+        guess without fixing anything. "Frozen" took real work on our side. Background workers that
+        harvest, decrypt, retry and demote key state are all mutations of key material, and doing
+        nothing by hand is not the same as nothing happening. If you find yourself here, stop your
+        workers, not just your hands — and make a PIN attempt impossible in your own app rather than
+        merely discouraged.
       </p>
 
-      <h3>What the key versions showed</h3>
+      <h3>2 · The suggested fix that wasn't</h3>
       <p>
-        A read-only dump of the published versions, next to our own key rows, settled several
-        things at once:
-      </p>
-      <ul>
-        <li>Three versions: two created by the X app (one from late 2025, one from two days before the incident) and ours, the highest.</li>
-        <li>Every conversation key we had stored for the account was sealed to <em>our</em> version — exactly what "new keys go to the newest version" predicts.</li>
-        <li>We still hold the private key for that version. So the conversations sealed to it remain recoverable on our side whatever happens in the app. The history that is at risk is the older history behind the two app-created versions.</li>
-      </ul>
-      <p>
-        X's staff also spelled out the design they would have wanted from the start: if a backend
-        needs to act as an account that uses X Chat in the app, it should unlock the app's
-        existing, highest version with the owner's PIN — <code>Chat(config).unlock(pin)</code> —
-        rather than register a separate key.
+        Three weeks in, X suggested choosing <em>Forgot PIN</em> at the app's prompt to set a new PIN.
+        It did not offer a new PIN. It opened a "Forgot Passcode" screen with exactly two buttons,
+        <strong>Reset Chat</strong> and Go Back, warning that without a passcode or a linked device
+        the encrypted messages could not be retrieved. We stopped and asked before pressing anything,
+        and X's first answer was to treat Reset Chat as losing the app's access to all earlier
+        history.
       </p>
 
-      <h3>The answers that changed the picture</h3>
+      <h3>3 · Measuring instead of guessing</h3>
       <p>
-        We sent the key versions and eight questions. X answered all of them, and the news was
-        much better than "treat it as a wipe" had suggested:
+        A read-only dump of the account's published versions, next to our own key rows, settled more
+        than any reply had:
       </p>
       <ul>
-        <li><strong>Nothing is deleted by registering a new key.</strong> Messages and key-change events are only removed by message or conversation deletion, disappearing-message expiry, or account deletion. They simply stay unreadable to an identity the conversation key wasn't sealed to.</li>
-        <li><strong>Older Juicebox registrations stay valid.</strong> An older version's PIN can still recover that version later, on any device, and each version keeps its own guess limit.</li>
-        <li><strong>Other devices are left alone.</strong> A new version doesn't sign out other sessions or clear their keys; a device on an older version can still read the history sealed to it.</li>
-        <li><strong>Old history stays fetchable.</strong> The events endpoint returns a conversation's events whichever version you hold, and key-change events for older versions come back in <code>meta.conversation_key_events</code>.</li>
-        <li><strong>Changing the passcode keeps the version.</strong> Only Forgot PIN, Reset Chat and setup-without-recovery create a new one, and they leave the older versions in place.</li>
-        <li><strong>Unlocking an older version is supported</strong> — for reading. New conversation keys must always target the latest version, so older versions are read-only history.</li>
-        <li><strong>Keeping our key as a backend-owned identity is also supported</strong>, provided we complete its registration (section 2) and nobody uses X Chat on the account in the app.</li>
+        <li>Three versions: two created by the app (late 2025 and two days before the incident) and ours, the highest.</li>
+        <li>Every conversation key we had stored for the account was sealed to <em>our</em> version — exactly what "new keys go to the highest version" predicts.</li>
+        <li>We still held the private key for our version, so everything sealed to it was recoverable by us regardless of what happened in the app.</li>
       </ul>
       <p>
-        So "Reset Chat wipes it" meant the app on that device loses access, not that the history
-        is gone. Every piece of it is still recoverable by whoever holds the matching key: the two
-        app-created versions by their own PINs, and everything since the incident by the private
-        key we kept. The choice left is which identity should own the account from now on — the
-        app, via a reset and a new PIN, or our backend, via a completed registration.
+        We sent X the versions with eight questions, and the answers changed the picture: nothing is
+        deleted by a new version, older PIN backups stay valid with their own guess limits, other
+        devices are left alone, old key-change events stay fetchable, and older versions can be
+        unlocked to read their history. "Reset Chat wipes it" meant <em>the app on that device</em>
+        loses access. The history itself was never at risk.
       </p>
-      <div class="note">
-        <p>
-          <strong>Where it stands.</strong> We have the answers and are choosing between those two
-          paths. We will update this post with which one we took and whether the recovery went as
-          described.
-        </p>
+
+      <h3>4 · Choosing the owner</h3>
+      <p>
+        That left one decision: which identity owns the account from now on. We asked about both
+        options:
+      </p>
+      <ul>
+        <li>
+          <strong>Keep our key</strong>, complete its registration, and give it a PIN backup ourselves
+          with the SDK's <code>import_keys</code> + <code>setup(pin)</code> — technically possible, and
+          X's own example code does exactly that for bot accounts.
+        </li>
+        <li>
+          <strong>Reset Chat</strong> in the app and set a new PIN, so the app creates a new version
+          with its own registration.
+        </li>
+      </ul>
+      <p>
+        X's answer was unambiguous. Because the owner wants to keep using X Chat in the official app,
+        the app must own the identity: <strong>Reset Chat, set a new PIN in the app, and stop
+        publishing or completing keys from the backend.</strong> A backend-completed key with a PIN set
+        outside the app is not a supported path for the official app. Backend ownership is only
+        supported for an account that never opens X Chat in the app.
+      </p>
+
+      <h3>What survives the reset</h3>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Conversation keys sealed to</th><th>Covers</th><th>Readable with</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>First app version (late 2025)</td><td>Oldest history</td><td>That version's PIN, on any device</td></tr>
+            <tr><td>Second app version (two days before)</td><td>The two days before the incident</td><td>That version's PIN, on any device</td></tr>
+            <tr><td>Our published version</td><td>From the incident to the reset</td><td>Only the private key our backend holds</td></tr>
+            <tr><td>The new app version</td><td>Everything after the reset</td><td>The new PIN, in the app and through our unlock</td></tr>
+          </tbody>
+        </table>
       </div>
+      <p>
+        So the account gets its chat back and no message is lost, but the history is now split across
+        four keys, and one slice of it can only ever be read by our server. The private key we
+        published is no longer a liability we want to be rid of — it is the only way into those weeks.
+        We keep it, sealed, and never publish anything for this account again.
+      </p>
     </section>
 
     <section id="rules">
       <span class="section-mark">08 · Rules</span>
       <h2>What not to do</h2>
       <p>
-        Every item here corresponds to something that actually went wrong, either for us or in a way
-        we came close enough to see clearly.
+        Every item here corresponds to something that actually went wrong, for us or for another
+        developer on the same forum.
       </p>
       <ul class="rules">
         <li class="no"><span class="mark">✕</span><span><strong>Never publish an identity key onto an account a person uses in the X app.</strong> Not once, not "just to test". There is no undo.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never publish on every sign-in.</strong> Each publish creates a new current version, and anything holding an older key stops decrypting new conversations.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never forget that the highest <code>public_key_version</code> is current.</strong> Anything you publish immediately becomes the version every new conversation is sealed to.</span></li>
-        <li class="no"><span class="mark">✕</span><span><strong>Never retry a PIN in a loop, or across an account's several key configs.</strong> Each version has its own PIN and its own finite budget, and exhausting it is permanent.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never retry a PIN in a loop, or across an account's versions.</strong> Each version has its own PIN and its own finite budget, and exhausting it is permanent.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never treat a <code>juicebox_config</code> as proof of a PIN backup.</strong> X generates one for every version on every read.</span></li>
-        <li class="no"><span class="mark">✕</span><span><strong>Never publish a bare <code>public_key</code>.</strong> An incomplete registration on the current version keeps the official app stuck on its setup or PIN prompt.</span></li>
+        <li class="no"><span class="mark">✕</span><span><strong>Never treat a failed or empty key lookup as "no PIN backup".</strong> That path's remedy creates a new version and strands history — for what is usually an expired token.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never let a test environment hold real account tokens next to a one-way endpoint.</strong> Ours is where the publish came from.</span></li>
-        <li class="no"><span class="mark">✕</span><span><strong>Never treat a failed or empty key lookup as "no PIN backup".</strong> That path's remedy rotates the identity and loses history — for what is usually an expired token.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never assume your DM webhook covers chat.</strong> Verify with a controlled send; silence looks identical to a broken receiver.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never collapse every 4xx into one error code.</strong> A full subscription cap is indistinguishable from a bad token if you do.</span></li>
         <li class="no"><span class="mark">✕</span><span><strong>Never mark an account unsubscribed from a listing you failed to read.</strong> X keeps delivering and billing.</span></li>
-        <li class="yes"><span class="mark">✓</span><span><strong>Do keep the identity in the browser</strong> and send only conversation keys to your server. It is both safer and sufficient.</span></li>
-        <li class="yes"><span class="mark">✓</span><span><strong>Do keep one identity owner per account</strong> — the app, or a bot backend, never both. If you ever publish, persist that version's private key.</span></li>
+        <li class="yes"><span class="mark">✓</span><span><strong>Do keep one identity owner per account</strong> — the app for accounts people use, your backend only for dedicated bot accounts.</span></li>
+        <li class="yes"><span class="mark">✓</span><span><strong>Do keep the PIN and identity in the browser</strong> and send only conversation keys to your server. It is both safer and sufficient.</span></li>
         <li class="yes"><span class="mark">✓</span><span><strong>Do send a PIN only to the version the blobs are sealed to</strong>, read from the blob itself.</span></li>
+        <li class="yes"><span class="mark">✓</span><span><strong>Do pass <code>data</code> and <code>meta.conversation_key_events</code> together</strong> to the batch decrypt.</span></li>
+        <li class="yes"><span class="mark">✓</span><span><strong>Do keep any private key you ever published.</strong> It may be the only way into part of an account's history.</span></li>
         <li class="yes"><span class="mark">✓</span><span><strong>Do canonicalise event ids</strong> on the envelope's snowflake, so REST and webhook deliveries of the same message agree.</span></li>
         <li class="yes"><span class="mark">✓</span><span><strong>Do test irreversible operations on a throwaway account</strong> whose loss you would not mind explaining to its owner.</span></li>
       </ul>
@@ -850,17 +905,15 @@ field 6  created_at, epoch ms</code></pre>
         We built this integration with heavy AI assistance, and the mistake in section 6 is one an
         assistant will make readily. Not because it is careless, but because X's documentation
         presents the two identity paths as equally available options, and nothing in the reference
-        marks the publish call as irreversible. An assistant reading those docs will cheerfully
-        reach for the path that gives the backend more capability.
+        marks the publish call as irreversible. An assistant reading those docs will reach for the
+        path that gives the backend more capability.
       </p>
       <p>
-        So describing the API is not enough. The context has to state what is <em>true</em>, not
-        just what is <em>possible</em> — and it has to be phrased as prohibitions, because that is
-        what survives being summarised into a plan three steps later.
-      </p>
-      <p>
-        Paste this into your <code>CLAUDE.md</code>, your <code>.cursorrules</code>, or the top of
-        your prompt before asking for any X Chat work.
+        So describing the API is not enough. The context has to state what is <em>true</em>, not just
+        what is <em>possible</em> — and it has to be phrased as prohibitions, because that is what
+        survives being summarised into a plan three steps later. Paste this into your
+        <code>CLAUDE.md</code>, your <code>.cursorrules</code>, or the top of your prompt before asking
+        for any X Chat work.
       </p>
 
       <div class="paste">
@@ -869,7 +922,9 @@ field 6  created_at, epoch ms</code></pre>
 
 ## Facts that are not obvious from the docs
 
-- Every /2/chat/* payload is ciphertext. The API has no plaintext mode.
+- Every /2/chat/* payload is ciphertext. The API has no plaintext mode. X Chat
+  cannot be disabled for an account; encrypted conversations never appear in
+  legacy DM lookup or DM webhooks.
 - An account may have SEVERAL published identity key versions. The CURRENT one is
   always the highest public_key_version (a ms timestamp); there is no other
   "active" marker. New conversation keys MUST be sealed to each participant's
@@ -880,17 +935,19 @@ field 6  created_at, epoch ms</code></pre>
   valid after a newer version is created.
 - Changing the passcode keeps the same version. Forgot PIN, Reset Chat and
   setup-without-recovery create a NEW version and leave the older ones in place.
-- Registering a new version never deletes messages or key-change events. Older
-  key-change events stay available in meta.conversation_key_events.
-- Conversation keys are static and wrapped to long-lived identity keys. There is
-  no forward secrecy, and X never re-seals an old conversation key to a newer
-  identity. Each identity opens exactly the history sealed to it — and losing
-  one loses that history.
-- A juicebox_config on a public_keys entry does NOT prove that version has a
-  Juicebox registration. X generates one for every version on every read.
+- A new version never deletes messages or key-change events. X never re-seals an
+  old conversation key to a newer identity: each identity opens exactly the
+  history sealed to it.
 - Decryption requires CONVERSATION keys, not an identity. A Chat instance
   reporting is_unlocked=false decrypts correctly when conversation keys are
   passed explicitly.
+- GET /2/users/:id/public_keys returns only public_key, signing_public_key,
+  identity_public_key_signature, public_key_version and juicebox_config.
+  juicebox_config is generated for EVERY version on every read and does NOT
+  prove a Juicebox registration exists. Registration completeness cannot be
+  read back.
+- Key-change events arrive in meta.conversation_key_events, separate from data,
+  and the list is page-scoped.
 - Account Activity (AAA) subscriptions do NOT deliver chat.* events. Chat
   realtime requires POST /2/activity/subscriptions, per user AND per event type.
 - The envelope is not encrypted: encoded_event's leading Thrift fields expose
@@ -899,48 +956,51 @@ field 6  created_at, epoch ms</code></pre>
 ## Hard prohibitions
 
 - NEVER call POST /2/users/:id/public_keys for an account that a human uses in
-  the X app. Publishing makes your key the account's CURRENT X Chat identity: it
-  invalidates the owner's PIN, changes the safety number every contact sees, and
-  X exposes NO endpoint to retire or supersede a key version. It cannot be undone.
+  the X app, and never publish on sign-in. Publishing makes your key the
+  account's CURRENT identity: the owner's PIN stops working in the app, every
+  contact sees a security-code change, all new conversations are sealed to your
+  key, and X exposes NO endpoint to retire a version. It cannot be undone.
 - Publishing is NOT required to receive events (that needs a subscription) and
   NOT required to decrypt (that needs conversation keys). If a design appears to
   require publishing, the design is wrong. Re-read the decryption path.
-- NEVER retry a PIN automatically, and NEVER retry the same PIN against another
-  key config. Each version's guess budget is finite and separate; exhausting it
-  destroys that identity permanently. Read the key version each pending blob is
-  sealed to (plaintext in the blob's Thrift header), send the PIN ONLY to that
-  version's config, stop on the first invalid_pin, and surface the remaining
-  count.
-- ONE identity owner per account: the official app, or a bot backend that never
-  opens X Chat in the app. Never both. If you publish for a bot, send a COMPLETE
-  registration (public_key, signing_public_key, signing_public_key_signature,
-  identity_public_key_signature, registration_method) and persist that version's
-  private key; refetching public keys cannot recover it.
-- Test environments must not hold real account tokens where they can reach a
+- ONE identity owner per account. App-owned: the backend unlocks the app's
+  highest version with the owner's PIN and never publishes. Backend-owned (bot
+  accounts that never open X Chat in the app): publish a COMPLETE registration
+  (public_key, signing_public_key, identity_public_key_signature,
+  signing_public_key_signature, registration_method) and persist the private
+  key. There is no supported way to share or copy a key between the two.
+- NEVER retry a PIN automatically, and NEVER send the same PIN to another
+  version's config. Read the version each pending key blob is sealed to from its
+  plaintext Thrift header, send the PIN ONLY to that version, stop on the first
+  invalid PIN, and surface guesses_remaining.
+- NEVER treat an empty or failed public_keys response, or a juicebox_config, as
+  evidence about PIN backups. The UI remedy for "no PIN backup" creates a new
+  version and strands history.
+- NEVER let a test environment hold real account tokens where it can reach a
   one-way endpoint.
-- NEVER treat an empty or failed public_keys response as "this account has no
-  PIN backup". The UI remedy for that state rotates the identity and destroys
-  history. Always send an explicit public_key.fields, and treat a lookup failure
-  as a lookup failure.
+- NEVER delete a private key for any version you ever published; it may be the
+  only way to read part of an account's history.
 - NEVER mark an account's subscriptions removed based on a listing that failed
   to load. X keeps delivering and billing per event.
-- NEVER send the user's PIN to the backend, log it, or persist it.
+- NEVER send the user's PIN to the backend, log it, or persist it without the
+  user's explicit opt-in.
 
 ## Required implementation shape
 
 - The identity is unlocked in the BROWSER. The browser extracts conversation
   keys and sends ONLY those to the backend, which seals them at rest. The
-  backend decrypts unattended afterwards and never holds the PIN or identity.
-- Use the SINGULAR decrypt call that accepts conversation keys explicitly. The
-  batch call has no slot for keys and derives them from KeyChange events, which
-  requires an unlocked identity.
+  backend decrypts unattended afterwards.
+- Use the SINGULAR decrypt call that accepts conversation keys explicitly for
+  unattended decryption. For the batch call, pass data AND
+  meta.conversation_key_events together.
+- extractConversationKeys does NOT verify key-change signatures. Verify them
+  before storing the keys it returns.
 - Extract conversation keys ONE BLOB AT A TIME. The extract call returns a flat
-  {version: key} map with no conversation attached; batching and pairing
-  afterwards produces a cartesian product across conversations.
+  {version: key} map with no conversation attached.
 - juicebox_config arrives as an OBJECT; createChat calls JSON.parse internally
   and needs the STRING form. Its token_map is an ARRAY of
-  {key: realmId, value: {address, token}}. Those realm JWTs expire in ONE HOUR —
-  fetch them at submit time, never at mount.
+  {key: realmId, value: {address, token}}. Realm JWTs are scoped to
+  {x_id}:{key_version} and expire in ONE HOUR — fetch them at submit time.
 - Supply signing keys for BOTH participants or the other party's messages fail
   verification and are dropped.
 - Canonicalise event ids on the envelope's snowflake field. REST returns a
@@ -952,60 +1012,42 @@ field 6  created_at, epoch ms</code></pre>
 ## Before any irreversible call
 
 Stop and ask the human. Irreversible here means: publishing a public key,
-deleting a Juicebox registration, or anything that rotates an identity. State
-plainly that it cannot be undone and name what breaks for the account owner.</code></pre>
+completing or re-publishing a registration, calling setup/delete on a Juicebox
+registration, or anything that creates a new identity version. State plainly
+that it cannot be undone and name what breaks for the account owner.</code></pre>
       </div>
 
       <p>
         The last block is the one that matters most. An assistant will not spontaneously recognise
-        that a routine-looking <code>POST</code> is a one-way door, because nothing in the API's
-        shape says so. You have to tell it which doors are one-way.
+        that a routine-looking <code>POST</code> is a one-way door, because nothing in the API's shape
+        says so. You have to tell it which doors are one-way.
       </p>
     </section>
 
-    <section id="open">
-      <span class="section-mark">10 · Open questions</span>
-      <h2>What we still don't know</h2>
+    <section id="sources">
+      <span class="section-mark">10 · Sources</span>
+      <h2>Where the answers came from</h2>
+      <p>
+        Everything attributed to X's staff in this post comes from these public threads on X's
+        developer forum. The rest comes from our own measurements and from the SDK's source.
+      </p>
       <ul>
-        <li>
-          <strong><s>Whether the older history survives a reset.</s></strong> Answered: yes. Nothing
-          is deleted, and older Juicebox registrations stay valid, so each older version's PIN can
-          still recover its own history later (section 7).
-        </li>
-        <li>
-          <strong><s>Whether a passcode change creates a new version.</s></strong> Answered: it
-          does not. Only Forgot PIN, Reset Chat and setup-without-recovery do.
-        </li>
-        <li>
-          <strong><s>Whether unlocking an older version is supported.</s></strong> Answered: yes,
-          for reading history. New conversation keys always target the latest version.
-        </li>
-        <li>
-          <strong>Which call actually published.</strong> Answered: the published identity row
-          lives in our test environment's database, registered the same second as the key version
-          on X (section 6). The exact code path in that deployment is the one piece we have not
-          reconstructed.
-        </li>
-        <li>
-          <strong>Whether the delete credential is stable.</strong> We try the app bearer and fall
-          back to the user token because we could not determine which X actually wants.
-        </li>
-        <li>
-          <strong>The real rate limits.</strong> The numbers in section 3 come from a launch
-          announcement, not the API reference. They have held for us. They are not a contract.
-        </li>
+        <li><a href="https://devcommunity.x.com/t/x-chat-how-does-the-app-select-the-current-key-when-an-account-has-multiple-published-key-versions/274672">X Chat: how does the app select the current key when an account has multiple published key versions?</a> — our own thread: cause, recovery options and the final recommendation.</li>
+        <li><a href="https://devcommunity.x.com/t/xchat-key-generation-flow/276564">XChat Key Generation Flow</a> — publishing on every sign-in, one identity owner per account, no sharing keys with the app, no disabling X Chat.</li>
+        <li><a href="https://devcommunity.x.com/t/chat-agent-avgexperiments-owner-cannot-start-encrypted-1-1/274261">Chat Agent: owner cannot start encrypted 1:1</a> — keyless legacy conversations and <code>UNAUTHORIZED_REQUESTING_USER</code> on key initialization.</li>
+        <li><a href="https://devcommunity.x.com/t/decryptevents-extractconversationkeys-consistently-returns-empty-conversation-keys-for-real-keychangeevents-com-x-chatxdk-0-5-0-java/275330">decryptEvents() / extractConversationKeys() returns empty conversation keys</a> — the missing <code>meta.conversation_key_events</code>.</li>
+        <li><a href="https://github.com/xdevplatform/chat-xdk">xdevplatform/chat-xdk</a> — X's Chat XDK: <code>setup</code>, <code>unlock</code>, signature handling and the example bots.</li>
       </ul>
     </section>
 
     <footer>
       <p>
-        Written up because we could not find this anywhere while we needed it. Every measurement
-        here came from live traffic on accounts we own, with the owner present. Account identifiers,
-        app ids and org details are deliberately omitted.
+        Written up because we could not find this anywhere while we needed it. Every measurement here
+        came from live traffic on accounts we own, with the owner present.
       </p>
       <p>
-        If you are mid-integration and something here saved you a week — or if you know the answer
-        to anything in section 10 — that is exactly why it is public.
+        If you are mid-integration and something here saved you a week, that is exactly why it is
+        public.
       </p>
     </footer>
 
@@ -1016,7 +1058,7 @@ plainly that it cannot be undone and name what breaks for the account owner.</co
     <ol>
       <li><a href="#why">Why you are here</a></li>
       <li><a href="#model">The mental model</a></li>
-      <li><a href="#fork">The fork in the road</a></li>
+      <li><a href="#fork">One owner per account</a></li>
       <li><a href="#integrate">Integration</a></li>
       <li><a href="#decrypt">Decryption</a></li>
       <li><a href="#realtime">Realtime</a></li>
@@ -1024,7 +1066,7 @@ plainly that it cannot be undone and name what breaks for the account owner.</co
       <li><a href="#recovery">Recovery</a></li>
       <li><a href="#rules">What not to do</a></li>
       <li><a href="#llm">For your LLM</a></li>
-      <li><a href="#open">Open questions</a></li>
+      <li><a href="#sources">Sources</a></li>
     </ol>
   </nav>
 
