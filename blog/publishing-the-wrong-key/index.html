@@ -1024,26 +1024,12 @@ that it cannot be undone and name what breaks for the account owner.</code></pre
       </p>
     </section>
 
-    <section id="sources">
-      <span class="section-mark">10 · Sources</span>
-      <h2>Where the answers came from</h2>
-      <p>
-        Everything attributed to X's staff in this post comes from these public threads on X's
-        developer forum. The rest comes from our own measurements and from the SDK's source.
-      </p>
-      <ul>
-        <li><a href="https://devcommunity.x.com/t/x-chat-how-does-the-app-select-the-current-key-when-an-account-has-multiple-published-key-versions/274672">X Chat: how does the app select the current key when an account has multiple published key versions?</a> — our own thread: cause, recovery options and the final recommendation.</li>
-        <li><a href="https://devcommunity.x.com/t/xchat-key-generation-flow/276564">XChat Key Generation Flow</a> — publishing on every sign-in, one identity owner per account, no sharing keys with the app, no disabling X Chat.</li>
-        <li><a href="https://devcommunity.x.com/t/chat-agent-avgexperiments-owner-cannot-start-encrypted-1-1/274261">Chat Agent: owner cannot start encrypted 1:1</a> — keyless legacy conversations and <code>UNAUTHORIZED_REQUESTING_USER</code> on key initialization.</li>
-        <li><a href="https://devcommunity.x.com/t/decryptevents-extractconversationkeys-consistently-returns-empty-conversation-keys-for-real-keychangeevents-com-x-chatxdk-0-5-0-java/275330">decryptEvents() / extractConversationKeys() returns empty conversation keys</a> — the missing <code>meta.conversation_key_events</code>.</li>
-        <li><a href="https://github.com/xdevplatform/chat-xdk">xdevplatform/chat-xdk</a> — X's Chat XDK: <code>setup</code>, <code>unlock</code>, signature handling and the example bots.</li>
-      </ul>
-    </section>
 
     <footer>
       <p>
         Written up because we could not find this anywhere while we needed it. Every measurement here
-        came from live traffic on accounts we own, with the owner present.
+        came from live traffic on accounts we own, with the owner present. Account identifiers, app
+        ids and org details are deliberately omitted.
       </p>
       <p>
         If you are mid-integration and something here saved you a week, that is exactly why it is
@@ -1066,7 +1052,6 @@ that it cannot be undone and name what breaks for the account owner.</code></pre
       <li><a href="#recovery">Recovery</a></li>
       <li><a href="#rules">What not to do</a></li>
       <li><a href="#llm">For your LLM</a></li>
-      <li><a href="#sources">Sources</a></li>
     </ol>
   </nav>
 
